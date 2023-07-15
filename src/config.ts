@@ -34,7 +34,34 @@ export const { config } = await libConfig({
       arg: 'token',
     },
   },
-  /**
-   * Add more config stuff when needed
-   */
+  zendesk: {
+    domain: {
+      doc: 'Zendesk API domain',
+      format: String,
+      default: '',
+      env: 'ZD_DOMAIN',
+      arg: 'zd_domain',
+    },
+    username: {
+      doc: 'Zendesk username email',
+      format: String,
+      default: '',
+      env: 'ZD_USERNAME',
+      arg: 'zd_username',
+    },
+    password: {
+      doc: 'Zendesk token/password',
+      format: String,
+      default: '',
+      env: 'ZD_PASS',
+      arg: 'zd_pass',
+    },
+  },
+  concurrency: {
+    doc: 'Concurrency limit for processing tickets',
+    format: Number,
+    default: 5,
+    env: 'CONCURRENCY',
+    arg: 'concurrency',
+  }
 });
