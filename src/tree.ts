@@ -109,6 +109,31 @@ export const tpDocTypesTree: Tree = {
         '_type': 'application/vnd.oada.trellisfw.trading-partners.1+json',
         '*': {
           _type: 'application/vnd.oada.trellisfw.trading-partner.1+json',
+          bookmarks: {
+            _type: 'application/vnd.oada.bookmarks.1+json',
+            trellisfw: {
+              _type: 'application/vnd.oada.trellisfw.1+json',
+              documents: {
+                // eslint-disable-next-line no-secrets/no-secrets
+                '_type': 'application/vnd.oada.trellisfw.documentType.1+json',
+                '*': {
+                  _type: 'application/vnd.oada.trellisfw.documents.1+json',
+                  '*': {
+                    _type: 'application/vnd.oada.trellisfw.documents.1+json',
+                    _meta: {
+                      vdoc: {
+                        pdfs: {
+                          '*': {
+                            _type: 'application/pdf',
+                          }
+                        }
+                      }
+                    }
+                  },
+                },
+              },
+            },
+          },
         },
         'masterid-index': {
           '_type': 'application/vnd.oada.trellisfw.trading-partners.1+json',

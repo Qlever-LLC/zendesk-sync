@@ -459,6 +459,7 @@ __metadata:
     "@oada/pino-debug": ^3.9.1
     "@oada/types": ^3.5.2
     "@tsconfig/node16": ^16.1.0
+    "@types/clone-deep": ^4
     "@types/convict": ^6.1.3
     "@types/cron": ^2.0.1
     "@types/debug": ^4.1.8
@@ -470,6 +471,7 @@ __metadata:
     ava: 5.3.1
     axios: ^1.4.0
     c8: ^8.0.0
+    clone-deep: ^4.0.1
     cron: ^2.3.1
     debug: ^4.3.4
     eslint: ^8.45.0
@@ -558,6 +560,13 @@ __metadata:
     "@types/node": "*"
     "@types/responselike": ^1.0.0
   checksum: d9b26403fe65ce6b0cb3720b7030104c352bcb37e4fac2a7089a25a97de59c355fa08940658751f2f347a8512aa9d18fdb66ab3ade835975b2f454f2d5befbd9
+  languageName: node
+  linkType: hard
+
+"@types/clone-deep@npm:^4":
+  version: 4.0.1
+  resolution: "@types/clone-deep@npm:4.0.1"
+  checksum: 0a467f6772783cf131b57cac57feceb976148931275e4dbecb8471e86821c00d2519763e58d20943e8dfbcae0b96670b77138f064b67fdb6071aca6cdf3d3ecd
   languageName: node
   linkType: hard
 

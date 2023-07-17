@@ -24,14 +24,15 @@ import '@oada/pino-debug';
 import { connect, doJob, type OADAClient } from '@oada/client';
 import axios from 'axios';
 import { CronJob } from 'cron';
+import cloneDeep from 'clone-deep';
 import debug from 'debug';
 import md5 from 'md5';
 import PQueue from 'p-queue';
-import { tree } from './tree.js';
+import { tpDocTypesTree } from './tree.js';
 // Stuff from config
 const { token, domain } = config.get('oada');
 const { username, password, domain: ZD_DOMAIN } = config.get('zendesk');
-const SAP_FIELD = 'SAP ID';
+const SAP_FIELD = 'sap_id';
 const CONCURRENCY = config.get('concurrency');
 
 //const info = debug('zendesk-sync:info');
@@ -40,14 +41,15 @@ const trace = debug('zendesk-sync:trace');
 
 const POLL_RATE = 30_000;
 const JOB_TIMEOUT = 100_000;
+const ORG_FIELD_ID = 17666136440077; //TODO: This value is for the sandbox. Get the id for prod
 const work = new PQueue({ concurrency: CONCURRENCY });
 let cleanup: (id: number) => void | undefined
+tpDocTypesTree['resources'] = cloneDeep(tpDocTypesTree?.bookmarks?.trellisfw?.['trading-partners'] ?? {});
 
 
-//TODO: Watch for organization and SAP ID changes and handle these with trellis-data-manager updates and such.
-
-
-
+//TODO: 1. -Watch for organization and SAP ID changes and handle these with trellis-data-manager updates and such.
+//         -Update: should not need to do this with the way its comparing name and sapids then calling 'trading-partners-update'
+//      2. -Error handling: what if any of the http requests in handleTicket fail?
 export async function run() {
   const oada = await connect({ token, domain });
   cleanup = watchZendesk(async (ticket: OrgTicket) => {
@@ -79,7 +81,10 @@ export async function pollZd(): Promise<Array<OrgTicket>> {
   }
 
   // Now get the set of tickets with an organization
-  const tixWithOrgs = tickets.filter((t) => t.organization_id !== null)
+  const tixWithOrgs = tickets.filter(
+    (t) => t?.custom_fields.find(field => field.id === ORG_FIELD_ID && field.value !== null)
+    ?? t.organization_id !== null
+  );
 
   const orgs = Array.from(new Set(tixWithOrgs.map((t) => t.organization_id)));
   const organizations: Org[] = [];
@@ -96,7 +101,7 @@ export async function pollZd(): Promise<Array<OrgTicket>> {
         ids: orgs.join(','),
       }
     })) as unknown as { data: ManyResponse }).data;
-    organizations.push(...many.results.filter((o) => o[SAP_FIELD]));
+    organizations.push(...many.organizations.filter((o) => o.organization_fields[SAP_FIELD]));
   }
 
   return tickets.map((ticket) => ({
@@ -110,36 +115,53 @@ export async function pollZd(): Promise<Array<OrgTicket>> {
  * @param ticket
  * @param oada
  */
-export async function handleTicket(ticket: OrgTicket, oada: OADAClient): Promise<void> {
-  const org = ticket.organization[SAP_FIELD];
-  const id = `zendesk:${org}`;
-  const tp = await doJob(oada, {
+export async function handleTicket(ticket: OrgTicket, oada: OADAClient): Promise<void | string> {
+  const { id, name } = ticket.organization;
+  const sapids = ticket.organization.organization_fields[SAP_FIELD].split(',').map(id => `sap:${id}`);
+  const zid = `zendesk:${id}`;
+  const { result } = await doJob(oada, {
     service: 'trellis-data-manager',
     type: 'trading-partners-ensure',
     config: {
       element: {
-        externalIds: [id],
+        name: ticket.organization.name,
+        externalIds: [zid],
       }
     }
-  })
+  }) as unknown as { result: EnsureResult };
+  const tp = result.entry;
+  if (sapids.some(sapid => !tp.externalIds.includes(sapid)) || tp.name !== name) {
+    await doJob(oada, {
+      service: 'trellis-data-manager',
+      type: 'trading-partners-update',
+      config: {
+        element: {
+          masterid: tp.masterid,
+          name: ticket.organization.name,
+          externalIds: [zid, ...sapids],
+        }
+      }
+    })
+  }
 
-  const pdf = await generatePdf(ticket);
+  const pdf = await generatePdf(ticket, oada);
 
   // sync the pdf to Trellis
   //TODO: eliminate edge cases where an attachment may use the dirname or something...
-  const trellisname= `${ticket.id}-${md5(JSON.stringify(ticket))}`;
+  const trellisname = `${ticket.id}-${md5(JSON.stringify(ticket))}`;
   await oada.put({
     path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}`,
     // @ts-expect-error doesn't like union type?
     data: ticket,
-    tree,
+    tree: tpDocTypesTree,
   });
 
   let pdfid = md5(pdf.ticket.toString())
   await oada.put({
     path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdfs/${pdfid}`,
     data: pdf.ticket,
-    tree,
+    tree: tpDocTypesTree,
+    contentType: 'application/pdf',
   });
 
   for await (const attach of pdf.attachments) {
@@ -149,23 +171,27 @@ export async function handleTicket(ticket: OrgTicket, oada: OADAClient): Promise
       url: attach.content_url,
       responseType: 'arraybuffer',
     })) as unknown as { data: string }).data;
+    pdfid = md5(buff.toString())
     await oada.put({
       path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdfs/${pdfid}`,
       data: Buffer.from(buff, 'utf-8'),
-      tree,
+      tree: tpDocTypesTree,
+      contentType: 'application/pdf',
     });
   }
 
   // Mark the ticket closed
   await axios({
     method: 'put',
-    url: `${ZD_DOMAIN}/api/v2/ticket/${ticket.id}`,
+    url: `${ZD_DOMAIN}/api/v2/tickets/${ticket.id}.json`,
     auth: {
       username,
       password,
     },
     data: {
-      status: 'closed'
+      ticket: {
+        status: 'closed'
+      },
     }
   });
 
@@ -173,6 +199,7 @@ export async function handleTicket(ticket: OrgTicket, oada: OADAClient): Promise
     trace(`Marked sync operation for ticket [${ticket.id}] as finished.`)
     cleanup(ticket.id);
   }
+  return `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}`;
 }
 /**
  * The main polling loop for running a task on zendesk tickets
@@ -219,10 +246,15 @@ export function watchZendesk(task: (ticket: OrgTicket) => void): (id: number) =>
  * @param ticket
  * @returns
  */
-export async function generatePdf(ticket: OrgTicket): Promise<GenerateResponse> {
+export async function generatePdf(ticket: OrgTicket, oada: OADAClient): Promise<GenerateResponse> {
+
+  const { data: pdf } = await oada.get({
+    path: `/resources/2SWmnsBv0JaaQsjATksuSVs0Ynz`
+  });
+
   console.log(ticket);
   return {
-    ticket: {} as unknown as Buffer,
+    ticket: pdf as unknown as Buffer,
     attachments: [],
   }
 }
@@ -234,11 +266,15 @@ interface GenerateResponse {
 
 interface Org {
   id: number;
+  name: string;
   [SAP_FIELD]: string;
+  organization_fields: {
+    [SAP_FIELD]: string;
+  }
 }
 
 interface ManyResponse {
-  results: Array<Org>
+  organizations: Array<Org>
 };
 
 interface SearchResponse {
@@ -331,4 +367,9 @@ type OrgTicket = Ticket & {
   organization: Org
 }
 
-run();
+export type EnsureResult = {
+  entry?: any;
+  matches?: any[];
+  exact?: boolean;
+  new?: boolean;
+};

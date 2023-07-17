@@ -25,38 +25,56 @@ const { token, domain } = config.get('oada');
 const { password, username, domain: ZD_DOMAIN } = config.get('zendesk');
 
 const oada = await connect({domain, token});
+const CENT_TEST_ORG = 12909020494349;
 
-test.before('Setup connection and test ticket data', async (t)=> {
+//test.before('Setup connection and test ticket data', async (t)=> {
   // TODO: Ensure a trading-partner exists with the sap id of the organization in the sandbox
-  t.assert(true);
-})
+//})
 
 //test.after('clean up', async(t)=> {
 //})
 
-test('pollZd should regularly poll for closed tickets (those having SAPIDs; those without are ignored anyways)', async (t) => {
-  const ticket = await postTicket();
-  await pollZd();
+test('pollZd should regularly poll for closed tickets (those having SAPIDs; those without are ignored anyways)', async (t:any) => {
+  const { ticket } = await postTicket();
+  const tickets = await pollZd();
 
-  const tpid = '';
-  const resp = await oada.get({
-    path: `/bookmarks/trellisfw/trading-partners/${tpid}/bookmarks/trellisfw/documents/tickets/${tpid}`,
-  }) as unknown as { data: Record<string, any> };
+  const tick = tickets.find(t => t.id === ticket.id);
+  t.assert(tick)
+  t.assert(tick?.organization !== null)
+})
 
-  const ticketid = md5(JSON.stringify(ticket));
-  t.assert(resp.data[ticketid]);
+test.only('Unit Test - handleTicket', async(t: any) => {
+  const { ticket } = await postTicket();
+  ticket.organization = {
+    url: 'https://smithfielddocs1675786857.zendesk.com/api/v2/organizations/12909020494349.json',
+    id: 12909020494349,
+    name: 'Centricity',
+    shared_tickets: false,
+    shared_comments: false,
+    external_id: null,
+    created_at: '2023-02-07T16:24:14Z',
+    updated_at: '2023-07-16T18:44:03Z',
+    domain_names: [
+      'centricity.us'
+    ],
+    details: '',
+    notes: '',
+    group_id: null,
+    tags: [],
+    organization_fields: {
+      sap_id: '999999999'
+    }
+  };
+  const resultPath = await handleTicket(ticket, oada);
+  t.assert(resultPath);
 })
 
 /*
-test('Unit Test - handleTicket', async(t) => {
+test('Unit Test - watchZendesk', async(t: any) => {
 
 })
 
-test('Unit Test - watchZendesk', async(t) => {
-
-})
-
-test('Unit Test - run', async(t) => {
+test('Unit Test - run', async(t: any) => {
 
 })
 
@@ -100,16 +118,37 @@ test('Should maintain a listing of all zendesk organizations and their trellis t
 */
 
 async function postTicket() {
-  await axios({
+  return (await axios({
     method: 'post',
-    url: `${ZD_DOMAIN}/api/v2/search.json`,
+    url: `${ZD_DOMAIN}/api/v2/tickets.json`,
     auth: {
       username,
       password,
     },
-    params: {
-      type: 'ticket',
-      query: 'type:ticket status:solved',
+    data: {
+      ticket: {
+        via: {
+          channel: 'email',
+          source: {
+            from: {
+              address: 'noel.samuel.a@gmail.com',
+              name: 'Sam Noel',
+            },
+            to: {
+              name: 'SF Sandbox',
+              address: 'support@smithfielddocs1675786857.zendesk.com',
+            },
+            rel: null
+          }
+        },
+        subject: 'Test Subject',
+        comment: {
+          body: 'This is a test message used while testing the zendesk-sync service. Thanks.',
+        },
+        priority: 'normal',
+        status: 'solved',
+        recipient: 'support@smithfielddocs1675786857.zendesk.com',
+      },
     }
-  })
+  })).data;
 }
