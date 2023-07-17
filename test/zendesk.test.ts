@@ -144,6 +144,7 @@ async function postTicket() {
         subject: 'Test Subject',
         comment: {
           body: 'This is a test message used while testing the zendesk-sync service. Thanks.',
+          uploads: ['v74aZpldhaYreQYrLGwA3y4nI'],
         },
         priority: 'normal',
         status: 'solved',
