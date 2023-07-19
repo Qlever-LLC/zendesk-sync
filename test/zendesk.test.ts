@@ -19,13 +19,17 @@ import axios from 'axios';
 import test from 'ava';
 import { config } from '../dist/config.js';
 import { connect } from '@oada/client';
-import { pollZd, handleTicket, watchZendesk, run } from '../dist/index.js';
+import { pollZd, handleTicket, watchZendesk, run, type OrgTicket} from '../dist/index.js';
+import { setTimeout } from 'node:timers/promises';
 import md5 from 'md5';
+import PQueue from 'p-queue';
 const { token, domain } = config.get('oada');
 const { password, username, domain: ZD_DOMAIN } = config.get('zendesk');
+const CONCURRENCY = config.get('concurrency');
 
 const oada = await connect({domain, token});
 const CENT_TEST_ORG = 12909020494349;
+const MASTERID = 'resources/2ShqFzJoJ1yxjFe9zGSUVuEIBoa';
 
 //test.before('Setup connection and test ticket data', async (t)=> {
   // TODO: Ensure a trading-partner exists with the sap id of the organization in the sandbox
@@ -34,7 +38,7 @@ const CENT_TEST_ORG = 12909020494349;
 //test.after('clean up', async(t)=> {
 //})
 
-test('pollZd should regularly poll for closed tickets (those having SAPIDs; those without are ignored anyways)', async (t:any) => {
+test('pollZd should regularly poll for closed tickets (those having SAPIDs; those without are ignored anyways)', async (t) => {
   const { ticket } = await postTicket();
   const tickets = await pollZd();
 
@@ -43,45 +47,37 @@ test('pollZd should regularly poll for closed tickets (those having SAPIDs; thos
   t.assert(tick?.organization !== null)
 })
 
-test.only('Unit Test - handleTicket', async(t: any) => {
+test('Unit Test - handleTicket', async(t) => {
   const { ticket } = await postTicket();
-  ticket.organization = {
-    url: 'https://smithfielddocs1675786857.zendesk.com/api/v2/organizations/12909020494349.json',
-    id: 12909020494349,
-    name: 'Centricity',
-    shared_tickets: false,
-    shared_comments: false,
-    external_id: null,
-    created_at: '2023-02-07T16:24:14Z',
-    updated_at: '2023-07-16T18:44:03Z',
-    domain_names: [
-      'centricity.us'
-    ],
-    details: '',
-    notes: '',
-    group_id: null,
-    tags: [],
-    organization_fields: {
-      sap_id: '999999999'
-    }
-  };
+  ticket.organization = organization;
   const resultPath = await handleTicket(ticket, oada);
   t.assert(resultPath);
 })
 
+test.only('Unit Test - watchZendesk (this is essentially the run() method)', async(t) => {
+  t.timeout(140_000);
+  const work = new PQueue({ concurrency: CONCURRENCY });
+  await watchZendesk(async (ticket: OrgTicket) => {
+    work.add(async () => handleTicket(ticket, oada));
+  });
+  const { ticket } = await postTicket();
+  ticket.result_type = 'ticket';
+  ticket.organization = organization;
+  await setTimeout(120_000);
+
+  const trellisname = `${ticket.id}-${md5(JSON.stringify(ticket))}`;
+  const { data: resp } = await oada.get({
+    path: `/${MASTERID}/bookmarks/trellisfw/documents/tickets/${trellisname}`
+  }) as unknown as {data: {_type:string, id: string}};
+  const { data: meta } = await oada.get({
+    path: `/${MASTERID}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdfs`
+  });
+  t.is(resp!.id, ticket.id);
+  t.is(Object.keys(meta || {}).length, 2);
+  t.is(resp._type, 'application/vnd.zendesk.ticket.1+json');
+})
+
 /*
-test('Unit Test - watchZendesk', async(t: any) => {
-
-})
-
-test('Unit Test - run', async(t: any) => {
-
-})
-
-test('Unit Test - ', async(t) => {
-
-})
-
 test.only('Should create a folder for each ticket', async (t) => {
 
 });
@@ -117,7 +113,7 @@ test('Should maintain a listing of all zendesk organizations and their trellis t
 })
 */
 
-async function postTicket() {
+async function postTicket(status?: string) {
   return (await axios({
     method: 'post',
     url: `${ZD_DOMAIN}/api/v2/tickets.json`,
@@ -147,9 +143,30 @@ async function postTicket() {
           uploads: ['v74aZpldhaYreQYrLGwA3y4nI'],
         },
         priority: 'normal',
-        status: 'solved',
+        status: status ?? 'solved',
         recipient: 'support@smithfielddocs1675786857.zendesk.com',
       },
     }
   })).data;
 }
+
+const organization = {
+  url: 'https://smithfielddocs1675786857.zendesk.com/api/v2/organizations/12909020494349.json',
+  id: 12909020494349,
+  name: 'Centricity',
+  shared_tickets: false,
+  shared_comments: false,
+  external_id: null,
+  created_at: '2023-02-07T16:24:14Z',
+  updated_at: '2023-07-16T18:44:03Z',
+  domain_names: [
+    'centricity.us'
+  ],
+  details: '',
+  notes: '',
+  group_id: null,
+  tags: [],
+  organization_fields: {
+    sap_id: '999999999'
+  }
+};

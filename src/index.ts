@@ -35,11 +35,11 @@ const { username, password, domain: ZD_DOMAIN } = config.get('zendesk');
 const SAP_FIELD = 'sap_id';
 const CONCURRENCY = config.get('concurrency');
 
-//const info = debug('zendesk-sync:info');
+const info = debug('zendesk-sync:info');
 const warn = debug('zendesk-sync:warn');
 const trace = debug('zendesk-sync:trace');
 
-const POLL_RATE = 30_000;
+const POLL_RATE = 3;
 const JOB_TIMEOUT = 100_000;
 const ORG_FIELD_ID = 17666136440077; //TODO: This value is for the sandbox. Get the id for prod
 const work = new PQueue({ concurrency: CONCURRENCY });
@@ -79,6 +79,7 @@ export async function pollZd(): Promise<Array<OrgTicket>> {
     })) as unknown as { data: SearchResponse }).data;
     tickets.push(...response.results);
   }
+  if (tickets.length > 0) info(`Got tickets: ${tickets.map(t => t.id).join(',')}`);
 
   // Now get the set of tickets with an organization
   const tixWithOrgs = tickets.filter(
@@ -154,6 +155,7 @@ export async function handleTicket(ticket: OrgTicket, oada: OADAClient): Promise
     // @ts-expect-error doesn't like union type?
     data: ticket,
     tree: tpDocTypesTree,
+    contentType: 'application/vnd.zendesk.ticket.1+json',
   });
 
   let pdfid = md5(pdf.ticket.toString())
@@ -163,20 +165,27 @@ export async function handleTicket(ticket: OrgTicket, oada: OADAClient): Promise
     tree: tpDocTypesTree,
     contentType: 'application/pdf',
   });
+  await oada.put({
+    path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdfs/${pdfid}/_meta`,
+    data: { filename: `Ticket${trellisname}_MessageContent.pdf` },
+  });
 
   for await (const attach of pdf.attachments) {
-    if (attach.content_type !== 'application/pdf') continue;
     const buff = ((await axios({
       method: 'get',
       url: attach.content_url,
       responseType: 'arraybuffer',
     })) as unknown as { data: string }).data;
-    pdfid = md5(buff.toString())
+    pdfid = md5(buff.toString()+' ;')
     await oada.put({
       path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdfs/${pdfid}`,
       data: Buffer.from(buff, 'utf-8'),
       tree: tpDocTypesTree,
-      contentType: 'application/pdf',
+      contentType: attach.content_type,
+    });
+    await oada.put({
+      path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdfs/${pdfid}/_meta`,
+      data: { filename: attach.file_name }
     });
   }
 
@@ -226,6 +235,7 @@ export function watchZendesk(task: (ticket: OrgTicket) => void): (id: number) =>
     const tickets = await pollZd();
     for await (const ticket of tickets) {
       if (!workQueue.has(ticket.id)) {
+        trace(`Adding ticket ${ticket.id} to work queue.`);
         workQueue.set(ticket.id, Date.now());
 
         // Do task
@@ -247,15 +257,29 @@ export function watchZendesk(task: (ticket: OrgTicket) => void): (id: number) =>
  * @returns
  */
 export async function generatePdf(ticket: OrgTicket, oada: OADAClient): Promise<GenerateResponse> {
-
+  if (ticket) {}
   const { data: pdf } = await oada.get({
     path: `/resources/2SWmnsBv0JaaQsjATksuSVs0Ynz`
   });
 
-  console.log(ticket);
   return {
     ticket: pdf as unknown as Buffer,
-    attachments: [],
+    attachments: [{
+      "url": "https://smithfielddocs1675786857.zendesk.com/api/v2/attachments/17698886938637.json",
+      "id": 17698886938637,
+      "file_name": "Get_trading_partners.pdf",
+      "content_url": "https://smithfielddocs1675786857.zendesk.com/attachments/token/vqeBqaBsgjXG7r8hsct9yXbnD/?name=Get_trading_partners.pdf",
+      "mapped_content_url": "https://smithfielddocs1675786857.zendesk.com/attachments/token/vqeBqaBsgjXG7r8hsct9yXbnD/?name=Get_trading_partners.pdf",
+      "content_type": "application/pdf",
+      "size": 112441,
+      "width": null,
+      "height": null,
+      "inline": false,
+      "deleted": false,
+      "malware_access_override": false,
+      "malware_scan_result": "malware_not_found",
+      "thumbnails": []
+    }],
   }
 }
 
@@ -264,7 +288,7 @@ interface GenerateResponse {
   attachments: Array<Attachment>;
 }
 
-interface Org {
+export interface Org {
   id: number;
   name: string;
   [SAP_FIELD]: string;
@@ -273,11 +297,11 @@ interface Org {
   }
 }
 
-interface ManyResponse {
+export interface ManyResponse {
   organizations: Array<Org>
 };
 
-interface SearchResponse {
+export interface SearchResponse {
   results: Array<Ticket>;
   next: string | null;
   previous: string | null;
@@ -285,7 +309,7 @@ interface SearchResponse {
   count: number;
 }
 
-interface Ticket {
+export interface Ticket {
   "url": string;
   "id": number;
   "external_id": number | null,
@@ -346,7 +370,7 @@ interface Ticket {
   "result_type": string;
 }
 
-interface Attachment {
+export interface Attachment {
   "url": string;
   "id": number;
   "file_name": string;
@@ -363,7 +387,7 @@ interface Attachment {
   "thumbnails": []
 }
 
-type OrgTicket = Ticket & {
+export type OrgTicket = Ticket & {
   organization: Org
 }
 
