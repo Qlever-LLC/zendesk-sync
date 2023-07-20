@@ -32,7 +32,6 @@ import { tpDocTypesTree } from './tree.js';
 // Stuff from config
 const { token, domain } = config.get('oada');
 const { username, password, domain: ZD_DOMAIN } = config.get('zendesk');
-const SAP_FIELD = 'sap_id';
 const CONCURRENCY = config.get('concurrency');
 
 const info = debug('zendesk-sync:info');
@@ -42,6 +41,8 @@ const trace = debug('zendesk-sync:trace');
 const POLL_RATE = 3;
 const JOB_TIMEOUT = 100_000;
 const ORG_FIELD_ID = 17666136440077; //TODO: This value is for the sandbox. Get the id for prod
+const SAP_FIELD = 'sap_id';
+//const SAP_ID_FIELD_PROD = 14957644464141;
 const work = new PQueue({ concurrency: CONCURRENCY });
 let cleanup: (id: number) => void | undefined
 tpDocTypesTree['resources'] = cloneDeep(tpDocTypesTree?.bookmarks?.trellisfw?.['trading-partners'] ?? {});
