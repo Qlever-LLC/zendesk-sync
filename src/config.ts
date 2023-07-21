@@ -56,6 +56,20 @@ export const { config } = await libConfig({
       env: 'ZD_PASS',
       arg: 'zd_pass',
     },
+    api_limit: {
+      doc: 'Zendesk API per minute rate limit',
+      format: Number,
+      default: 700,
+      env: 'ZD_API_LIMIT',
+      arg: 'zd_api_limit',
+    },
+    org_field_id: {
+      doc: 'Zendesk field ID for cataloged organziation',
+      default: 17666136440077, //TODO: This value is for the sandbox. Get the id for prod
+      format: Number,
+      env: 'ZD_ORG_FIELD_ID',
+      arg: 'zd_org_field_id',
+    },
   },
   concurrency: {
     doc: 'Concurrency limit for processing tickets',
@@ -63,5 +77,21 @@ export const { config } = await libConfig({
     default: 5,
     env: 'CONCURRENCY',
     arg: 'concurrency',
-  }
+  },
+  'poll-rate': {
+    doc: 'Polling rate in seconds',
+    format: Number,
+    default: 180,
+    env: 'POLL_RATE',
+    arg: 'poll-rate',
+  },
+
+  timeout: {
+    doc: 'Time limit for processing a ticket',
+    format: Number,
+    default: 100_000,
+    env: 'JOB_TIMEOUT',
+    arg: 'job_timeout',
+  },
+
 });

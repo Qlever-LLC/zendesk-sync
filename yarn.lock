@@ -500,6 +500,7 @@ __metadata:
     eslint-plugin-unicorn: ^48.0.0
     md5: ^2.3.0
     p-queue: ^7.3.4
+    p-throttle: ^5.1.0
     prettier: ^3.0.0
     puppeteer: ^20.8.2
     tslib: ^2.6.0
@@ -5694,6 +5695,13 @@ __metadata:
     eventemitter3: ^4.0.7
     p-timeout: ^5.0.2
   checksum: a21b8a4dd75f64a4988e4468cc344d1b45132506ddd2c771932d3de446d108ee68713b629e0d3f0809c227bc10eafc613edde6ae741d9f60db89b6031e40921c
+  languageName: node
+  linkType: hard
+
+"p-throttle@npm:^5.1.0":
+  version: 5.1.0
+  resolution: "p-throttle@npm:5.1.0"
+  checksum: c412429cbb759a0772a083200a556e5866d4a7cb5383a9cc85880f47f07f4b1787fc33d2c824ab659fff0fc4a34a56e1d0712e88808f0c0ae0ffbe93b54f46c1
   languageName: node
   linkType: hard
 

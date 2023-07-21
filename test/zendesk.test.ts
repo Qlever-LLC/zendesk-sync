@@ -19,17 +19,20 @@ import axios from 'axios';
 import test from 'ava';
 import { config } from '../dist/config.js';
 import { connect } from '@oada/client';
-import { pollZd, handleTicket, watchZendesk, run, type OrgTicket} from '../dist/index.js';
+import { pollZd, handleTicket, watchZendesk, run } from '../dist/index.js';
+import type { OrgTicket, Ticket } from '../dist/zd/zendesk.js';
 import { setTimeout } from 'node:timers/promises';
 import md5 from 'md5';
 import PQueue from 'p-queue';
 const { token, domain } = config.get('oada');
 const { password, username, domain: ZD_DOMAIN } = config.get('zendesk');
 const CONCURRENCY = config.get('concurrency');
+const POLL_RATE = config.get('poll-rate');
 
 const oada = await connect({domain, token});
 const CENT_TEST_ORG = 12909020494349;
 const MASTERID = 'resources/2ShqFzJoJ1yxjFe9zGSUVuEIBoa';
+console.log(`TESTING WITH THE FOLLOWING TICKET POLL RATE: every ${POLL_RATE} seconds. ADJUST IF NECESSARY.`)
 
 //test.before('Setup connection and test ticket data', async (t)=> {
   // TODO: Ensure a trading-partner exists with the sap id of the organization in the sandbox
@@ -44,20 +47,20 @@ test('pollZd should regularly poll for closed tickets (those having SAPIDs; thos
 
   const tick = tickets.find(t => t.id === ticket.id);
   t.assert(tick)
-  t.assert(tick?.organization !== null)
+  t.assert(tick?.organization_id !== null)
 })
 
-test('Unit Test - handleTicket', async(t) => {
+test.only('Unit Test - handleTicket', async(t) => {
   const { ticket } = await postTicket();
   ticket.organization = organization;
   const resultPath = await handleTicket(ticket, oada);
   t.assert(resultPath);
 })
 
-test.only('Unit Test - watchZendesk (this is essentially the run() method)', async(t) => {
+test('Unit Test - watchZendesk (this is essentially the run() method)', async(t) => {
   t.timeout(140_000);
   const work = new PQueue({ concurrency: CONCURRENCY });
-  await watchZendesk(async (ticket: OrgTicket) => {
+  await watchZendesk(async (ticket: Ticket) => {
     work.add(async () => handleTicket(ticket, oada));
   });
   const { ticket } = await postTicket();
@@ -140,7 +143,7 @@ async function postTicket(status?: string) {
         subject: 'Test Subject',
         comment: {
           body: 'This is a test message used while testing the zendesk-sync service. Thanks.',
-          uploads: ['v74aZpldhaYreQYrLGwA3y4nI'],
+          uploads: ['yfQZqXhqKXxRJ99XLO9l0GN9y'], //TODO: These expire.
         },
         priority: 'normal',
         status: status ?? 'solved',
@@ -149,6 +152,20 @@ async function postTicket(status?: string) {
     }
   })).data;
 }
+/*
+async function postUpload() {
+  return (await axios.post({
+    method: 'post',
+    url: `${ZD_DOMAIN}/api/v2/uploads.json`,
+    auth: {
+      username,
+      password,
+    },
+    data: {
+    }
+  })).data;
+}
+*/
 
 const organization = {
   url: 'https://smithfielddocs1675786857.zendesk.com/api/v2/organizations/12909020494349.json',
