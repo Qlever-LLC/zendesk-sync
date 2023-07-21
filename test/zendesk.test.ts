@@ -27,6 +27,7 @@ import PQueue from 'p-queue';
 const { token, domain } = config.get('oada');
 const { password, username, domain: ZD_DOMAIN } = config.get('zendesk');
 const CONCURRENCY = config.get('concurrency');
+const { email1, email2 } = config.get('testing');
 const POLL_RATE = config.get('poll-rate');
 
 const oada = await connect({domain, token});
@@ -42,7 +43,7 @@ console.log(`TESTING WITH THE FOLLOWING TICKET POLL RATE: every ${POLL_RATE} sec
 //})
 
 test('pollZd should regularly poll for closed tickets (those having SAPIDs; those without are ignored anyways)', async (t) => {
-  const { ticket } = await postTicket();
+  const { ticket } = await postTicket({});
   const tickets = await pollZd();
 
   const tick = tickets.find(t => t.id === ticket.id);
@@ -51,11 +52,19 @@ test('pollZd should regularly poll for closed tickets (those having SAPIDs; thos
 })
 
 test.only('Unit Test - handleTicket', async(t) => {
-  const { ticket } = await postTicket();
+  const { ticket } = await postTicket({});
   ticket.organization = organization;
   const resultPath = await handleTicket(ticket, oada);
   t.assert(resultPath);
 })
+
+test('Unit Test - handleTicket should fail when the customer org is missing SAPID', async(t) => {
+  const { ticket } = await postTicket({ from: email2 });
+  ticket.organization = organization;
+  const resultPath = await handleTicket(ticket, oada);
+  t.assert(resultPath);
+})
+
 
 test('Unit Test - watchZendesk (this is essentially the run() method)', async(t) => {
   t.timeout(140_000);
@@ -63,7 +72,7 @@ test('Unit Test - watchZendesk (this is essentially the run() method)', async(t)
   await watchZendesk(async (ticket: Ticket) => {
     work.add(async () => handleTicket(ticket, oada));
   });
-  const { ticket } = await postTicket();
+  const { ticket } = await postTicket({});
   ticket.result_type = 'ticket';
   ticket.organization = organization;
   await setTimeout(120_000);
@@ -116,7 +125,13 @@ test('Should maintain a listing of all zendesk organizations and their trellis t
 })
 */
 
-async function postTicket(status?: string) {
+async function postTicket({
+  status,
+  from,
+}: {
+  status?: string,
+  from?: { address: string; name: string },
+}) {
   return (await axios({
     method: 'post',
     url: `${ZD_DOMAIN}/api/v2/tickets.json`,
@@ -129,10 +144,7 @@ async function postTicket(status?: string) {
         via: {
           channel: 'email',
           source: {
-            from: {
-              address: 'noel.samuel.a@gmail.com',
-              name: 'Sam Noel',
-            },
+            from: from ?? email2,
             to: {
               name: 'SF Sandbox',
               address: 'support@smithfielddocs1675786857.zendesk.com',

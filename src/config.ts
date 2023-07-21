@@ -93,5 +93,40 @@ export const { config } = await libConfig({
     env: 'JOB_TIMEOUT',
     arg: 'job_timeout',
   },
+  testing: {
+    email1: {
+      name: {
+        doc: 'Name used by email1 in tests',
+        format: String,
+        default: '',
+        env: 'E1_NAME',
+        arg: 'e1_name',
+      },
+      address: {
+        doc: 'Email1 address used for tests',
+        format: String,
+        default: '',
+        env: 'E1_ADDRESS',
+        arg: 'e1_address',
+      },
+    },
+    email2: {
+      name: {
+        doc: 'Name used by email1 in tests',
+        format: String,
+        default: '',
+        env: 'E2_NAME',
+        arg: 'e2_name',
+      },
+      address: {
+        doc: 'Email1 address used for tests',
+        format: String,
+        default: '',
+        env: 'E2_ADDRESS',
+        arg: 'e2_address',
+      },
+    },
+
+  }
 
 });

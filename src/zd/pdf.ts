@@ -76,6 +76,9 @@ let ready = new Promise<string>((resolve, reject) => {
     if (typeof a == 'string') {
       resolve(a);
     } else if (a) {
+      if (a.address === '::') {
+        resolve(`127.0.0.1:${a.port}`);
+      }
       resolve(`${a.address}:${a.port}`);
     } else {
       reject('Could not create local server to serve template.');
@@ -88,7 +91,7 @@ export async function generatePdf(archive: TicketArchive): Promise<Buffer> {
 
   const browser = await launch({
     headless: 'new',
-    args: ['--no-sandbox', '--disable-gpu', '--disable-web-security'],
+    args: ['--disable-extensions', '--disable-setuid-sandbox', '--no-sandbox', '--disable-gpu', '--disable-web-security'],
     dumpio: true,
   });
 

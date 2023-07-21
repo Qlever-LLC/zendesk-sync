@@ -76,17 +76,18 @@ export async function run() {
  * organization has an SAP ID assigned. Called on a regular interval.
  **/
 export async function pollZd(): Promise<Array<Ticket>> {
-  const tickets = await searchTickets('sloved');
+  const tickets = await searchTickets('solved');
 
   if (tickets.length > 0)
     info(`Got tickets: ${tickets.map((t) => t.id).join(',')}`);
 
   // Now get the set of tickets with an organization
   const tixWithOrgs = tickets.filter(
-    (t) =>
-      t?.custom_fields.find(
-        (field) => field.id === ORG_FIELD_ID && field.value !== null
-      ) ?? t.organization_id !== null
+    (t) => t?.custom_fields?.[ORG_FIELD_ID] ?? t.organization_id
+  );
+
+  const picked = tickets.map(
+    (t) => (t?.custom_fields?.[ORG_FIELD_ID] ?? t.organization_id) as unknown as number
   );
 
   // Get all mentioned organizations
@@ -96,9 +97,9 @@ export async function pollZd(): Promise<Array<Ticket>> {
 
   // Return only those with an SAP_FIELD value
   return tixWithOrgs.filter(
-    (t) =>
-      t.organization_id &&
-      orgs[t.organization_id]?.organization_fields[SAP_FIELD]
+    (_, i) =>
+      // falseys are already filtered out
+      orgs[picked[i]!]?.organization_fields[SAP_FIELD]
   );
 }
 
@@ -113,7 +114,7 @@ export async function handleTicket(
 ): Promise<void | string> {
   const archive = await getTicketArchive(ticket);
   if (archive.org === null) {
-    error('A ticket without an organization is being archvied?', archive);
+    error('A ticket without an organization is being archived?', archive);
     throw new Error('Ticket must have an organization to archive.');
   }
   const pdf = await generatePdf(archive);
