@@ -131,6 +131,21 @@ export const tpDocTypesTree: Tree = {
                     }
                   },
                 },
+                'tickets': {
+                  _type: 'application/vnd.oada.trellisfw.documents.1+json',
+                  '*': {
+                    _type: 'application/vnd.oada.trellisfw.documents.1+json',
+                    _meta: {
+                      vdoc: {
+                        pdf: {
+                          '*': {
+                            _type: 'application/pdf',
+                          }
+                        }
+                      }
+                    }
+                  },
+                },
               },
             },
           },

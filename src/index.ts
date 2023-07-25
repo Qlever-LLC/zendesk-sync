@@ -21,7 +21,7 @@ import { config } from './config.js';
 // Import this _before_ pino and/or DEBUG
 import '@oada/pino-debug';
 
-import { connect, doJob, type OADAClient } from '@oada/client';
+import { connect, doJob, type OADAClient, type JsonObject } from '@oada/client';
 import axios from 'axios';
 import { CronJob } from 'cron';
 import cloneDeep from 'clone-deep';
@@ -154,13 +154,23 @@ export async function handleTicket(
   // sync the pdf to Trellis
   //TODO: eliminate edge cases where an attachment may use the dirname or something...
   const trellisname = `${ticket.id}-${md5(JSON.stringify(archive))}`;
-  await oada.put({
-    path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}`,
-    // @ts-expect-error doesn't like union type?
-    data: ticket,
-    tree: tpDocTypesTree,
+  const { headers } = await oada.post({
+    path: `/resources`,
+    data: ticket as unknown as JsonObject,
     contentType: 'application/vnd.zendesk.ticket.1+json',
   });
+
+  await oada.put({
+    path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets`,
+    data: {
+      [trellisname]: {
+        _id: headers['content-location']!.replace(/^\//, ''),
+        _rev: 0,
+      },
+    },
+    tree: tpDocTypesTree,
+  });
+
 
   let pdfid = md5(archive.toString());
   await oada.put({
