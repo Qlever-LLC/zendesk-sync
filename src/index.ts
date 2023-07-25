@@ -164,13 +164,13 @@ export async function handleTicket(
 
   let pdfid = md5(archive.toString());
   await oada.put({
-    path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdfs/${pdfid}`,
+    path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdf/${pdfid}`,
     data: pdf,
     tree: tpDocTypesTree,
     contentType: 'application/pdf',
   });
   await oada.put({
-    path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdfs/${pdfid}/_meta`,
+    path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdf/${pdfid}/_meta`,
     data: { filename: `Ticket${trellisname}_MessageContent.pdf` },
   });
 
@@ -184,13 +184,13 @@ export async function handleTicket(
     ).data;
     pdfid = md5(buff.toString() + ' ;');
     await oada.put({
-      path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdfs/${pdfid}`,
+      path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdf/${pdfid}`,
       data: Buffer.from(buff, 'utf-8'),
       tree: tpDocTypesTree,
       contentType: attach.content_type,
     });
     await oada.put({
-      path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdfs/${pdfid}/_meta`,
+      path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdf/${pdfid}/_meta`,
       data: { filename: attach.file_name },
     });
   }

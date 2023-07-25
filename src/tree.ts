@@ -122,7 +122,7 @@ export const tpDocTypesTree: Tree = {
                     _type: 'application/vnd.oada.trellisfw.documents.1+json',
                     _meta: {
                       vdoc: {
-                        pdfs: {
+                        pdf: {
                           '*': {
                             _type: 'application/pdf',
                           }
