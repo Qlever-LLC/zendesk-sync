@@ -98,9 +98,12 @@ export async function pollZd(): Promise<Array<Ticket>> {
 
   // Return only those with an SAP_FIELD value
   return tixWithOrgs.filter(
-    (_, i) =>
+    (t, i) =>
       // falseys are already filtered out
-      orgs[picked[i]!]?.organization_fields[SAP_FIELD]
+      orgs[picked[i]!]?.organization_fields[SAP_FIELD] ||
+      // Close after 27 days without SAP ID. Otherwise, Zendesk will close it themselves and
+      // it won't show up under this query for solved tickets.
+      ((Date.now() - (new Date(t.updated_at) as unknown as number)/24/3_600_000) > 27.0)
   );
 }
 
