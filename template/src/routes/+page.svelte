@@ -2,7 +2,7 @@
   import prettyBytes from 'pretty-bytes';
   import { format, parse } from 'date-fns';
 
-  let p = fetch('http://localhost/ticket-data')
+  let p = fetch('http://127.0.0.1/_data')
     .then((d) => d.json())
     .then((d) => {
       d.test = '123';
