@@ -20,53 +20,69 @@ import test from 'ava';
 import { config } from '../dist/config.js';
 import { connect } from '@oada/client';
 import { pollZd, handleTicket, watchZendesk, run } from '../dist/index.js';
-import type { OrgTicket, Ticket } from '../dist/zd/zendesk.js';
+import {
+  getTicketArchive,
+  type OrgTicket,
+  type Ticket,
+} from '../dist/zd/zendesk.js';
 import { setTimeout } from 'node:timers/promises';
 import md5 from 'md5';
 import PQueue from 'p-queue';
+import { generatePdf } from '../dist/zd/pdf.js';
+import { writeFileSync } from 'node:fs';
 const { token, domain } = config.get('oada');
 const { password, username, domain: ZD_DOMAIN } = config.get('zendesk');
 const CONCURRENCY = config.get('concurrency');
 const { email1, email2 } = config.get('testing');
 const POLL_RATE = config.get('poll-rate');
 
-const oada = await connect({domain, token});
+const oada = await connect({ domain, token });
 const CENT_TEST_ORG = 12909020494349;
 const MASTERID = 'resources/2ShqFzJoJ1yxjFe9zGSUVuEIBoa';
-console.log(`TESTING WITH THE FOLLOWING TICKET POLL RATE: every ${POLL_RATE} seconds. ADJUST IF NECESSARY.`)
+console.log(
+  `TESTING WITH THE FOLLOWING TICKET POLL RATE: every ${POLL_RATE} seconds. ADJUST IF NECESSARY.`
+);
 
 //test.before('Setup connection and test ticket data', async (t)=> {
-  // TODO: Ensure a trading-partner exists with the sap id of the organization in the sandbox
+// TODO: Ensure a trading-partner exists with the sap id of the organization in the sandbox
 //})
 
 //test.after('clean up', async(t)=> {
 //})
 
+test.only('Should make ticket from PDF', async (t) => {
+  const archive = await getTicketArchive(159);
+  t.assert(archive);
+  t.assert(archive.org !== null);
+  const pdf = await generatePdf(archive);
+
+  writeFileSync('./test/output.pdf', pdf);
+});
+
 test('pollZd should regularly poll for closed tickets (those having SAPIDs; those without are ignored anyways)', async (t) => {
   const { ticket } = await postTicket({});
   const tickets = await pollZd();
 
-  const tick = tickets.find(t => t.id === ticket.id);
-  t.assert(tick)
-  t.assert(tick?.organization_id !== null)
-})
+  const tick = tickets.find((t) => t.id === ticket.id);
+  t.assert(tick);
+  t.assert(tick?.organization_id !== null);
+});
 
-test.only('Unit Test - handleTicket', async(t) => {
+test('Unit Test - handleTicket', async (t) => {
   const { ticket } = await postTicket({});
   ticket.organization = organization;
   const resultPath = await handleTicket(ticket, oada);
   t.assert(resultPath);
-})
+});
 
-test('Unit Test - handleTicket should fail when the customer org is missing SAPID', async(t) => {
+test('Unit Test - handleTicket should fail when the customer org is missing SAPID', async (t) => {
   const { ticket } = await postTicket({ from: email2 });
   ticket.organization = organization;
   const resultPath = await handleTicket(ticket, oada);
   t.assert(resultPath);
-})
+});
 
-
-test('Unit Test - watchZendesk (this is essentially the run() method)', async(t) => {
+test('Unit Test - watchZendesk (this is essentially the run() method)', async (t) => {
   t.timeout(140_000);
   const work = new PQueue({ concurrency: CONCURRENCY });
   await watchZendesk(async (ticket: Ticket) => {
@@ -78,16 +94,16 @@ test('Unit Test - watchZendesk (this is essentially the run() method)', async(t)
   await setTimeout(120_000);
 
   const trellisname = `${ticket.id}-${md5(JSON.stringify(ticket))}`;
-  const { data: resp } = await oada.get({
-    path: `/${MASTERID}/bookmarks/trellisfw/documents/tickets/${trellisname}`
-  }) as unknown as {data: {_type:string, id: string}};
+  const { data: resp } = (await oada.get({
+    path: `/${MASTERID}/bookmarks/trellisfw/documents/tickets/${trellisname}`,
+  })) as unknown as { data: { _type: string; id: string } };
   const { data: meta } = await oada.get({
-    path: `/${MASTERID}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdfs`
+    path: `/${MASTERID}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdfs`,
   });
   t.is(resp!.id, ticket.id);
   t.is(Object.keys(meta || {}).length, 2);
   t.is(resp._type, 'application/vnd.zendesk.ticket.1+json');
-})
+});
 
 /*
 test.only('Should create a folder for each ticket', async (t) => {
@@ -129,41 +145,43 @@ async function postTicket({
   status,
   from,
 }: {
-  status?: string,
-  from?: { address: string; name: string },
+  status?: string;
+  from?: { address: string; name: string };
 }) {
-  const ticket = (await axios({
-    method: 'post',
-    url: `${ZD_DOMAIN}/api/v2/tickets.json`,
-    auth: {
-      username,
-      password,
-    },
-    data: {
-      ticket: {
-        via: {
-          channel: 'email',
-          source: {
-            from: from ?? email2,
-            to: {
-              name: 'SF Sandbox',
-              address: 'support@smithfielddocs1675786857.zendesk.com',
-            },
-            rel: null
-          }
-        },
-        subject: 'Test Subject',
-        comment: {
-          body: 'This is a test message used while testing the zendesk-sync service. Thanks.',
-        },
-        priority: 'normal',
-        status: status ?? 'solved',
-        recipient: 'support@smithfielddocs1675786857.zendesk.com',
+  const ticket = (
+    await axios({
+      method: 'post',
+      url: `${ZD_DOMAIN}/api/v2/tickets.json`,
+      auth: {
+        username,
+        password,
       },
-    }
-  })).data;
+      data: {
+        ticket: {
+          via: {
+            channel: 'email',
+            source: {
+              from: from ?? email2,
+              to: {
+                name: 'SF Sandbox',
+                address: 'support@smithfielddocs1675786857.zendesk.com',
+              },
+              rel: null,
+            },
+          },
+          subject: 'Test Subject',
+          comment: {
+            body: 'This is a test message used while testing the zendesk-sync service. Thanks.',
+          },
+          priority: 'normal',
+          status: status ?? 'solved',
+          recipient: 'support@smithfielddocs1675786857.zendesk.com',
+        },
+      },
+    })
+  ).data;
 
-  (await axios({
+  await axios({
     method: 'put',
     url: `${ZD_DOMAIN}/api/v2/tickets/${ticket.ticket.id}`,
     auth: {
@@ -177,8 +195,8 @@ async function postTicket({
           uploads: ['gvHKUYycZZygimOGNrd4G6ctF'], //TODO: These expire.
         },
       },
-    }
-  }));
+    },
+  });
 
   return ticket;
 }
@@ -206,14 +224,12 @@ const organization = {
   external_id: null,
   created_at: '2023-02-07T16:24:14Z',
   updated_at: '2023-07-16T18:44:03Z',
-  domain_names: [
-    'centricity.us'
-  ],
+  domain_names: ['centricity.us'],
   details: '',
   notes: '',
   group_id: null,
   tags: [],
   organization_fields: {
-    sap_id: '999999999'
-  }
+    sap_id: '999999999',
+  },
 };
