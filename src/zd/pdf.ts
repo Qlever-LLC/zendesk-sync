@@ -91,8 +91,12 @@ export async function generatePdf(archive: TicketArchive): Promise<Buffer> {
 
   const browser = await launch({
     headless: 'new',
-    //args: ['--disable-extensions', '--disable-setuid-sandbox', '--no-sandbox', '--disable-gpu', '--disable-web-security'],
-    args: ['--extensions', '--no-sandbox', '--disable-gpu', '--disable-web-security'],
+    args: [
+      '--disable-extensions',
+      '--no-sandbox',
+      '--disable-gpu',
+      '--disable-web-security',
+    ],
     dumpio: true,
   });
 
