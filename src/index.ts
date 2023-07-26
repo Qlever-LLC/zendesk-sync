@@ -159,28 +159,24 @@ export async function handleTicket(
     data: ticket as unknown as JsonObject,
     contentType: 'application/vnd.zendesk.ticket.1+json',
   });
+  const _id = headers['content-location']!.replace(/^\//, '');
 
   await oada.put({
-    path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets`,
+    path: `/${_id}/_meta`,
     data: {
-      [trellisname]: {
-        _id: headers['content-location']!.replace(/^\//, ''),
-        _rev: 0,
-      },
+      shared: 'outgoing'
     },
-    tree: tpDocTypesTree,
   });
-
 
   let pdfid = md5(archive.toString());
   await oada.put({
-    path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdf/${pdfid}`,
+    path: `/${_id}/_meta/vdoc/pdf/${pdfid}`,
     data: pdf,
-    tree: tpDocTypesTree,
+    headers: { 'x-oada-ensure-link': 'unversioned' },
     contentType: 'application/pdf',
   });
   await oada.put({
-    path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdf/${pdfid}/_meta`,
+    path: `/${_id}/_meta/vdoc/pdf/${pdfid}/_meta`,
     data: { filename: `Ticket${trellisname}_MessageContent.pdf` },
   });
 
@@ -194,16 +190,27 @@ export async function handleTicket(
     ).data;
     pdfid = md5(buff.toString() + ' ;');
     await oada.put({
-      path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdf/${pdfid}`,
+      path: `/${_id}/_meta/vdoc/pdf/${pdfid}`,
       data: Buffer.from(buff, 'utf-8'),
-      tree: tpDocTypesTree,
+      headers: { 'x-oada-ensure-link': 'unversioned' },
       contentType: attach.content_type,
     });
     await oada.put({
-      path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdf/${pdfid}/_meta`,
+      path: `/${_id}/_meta/vdoc/pdf/${pdfid}/_meta`,
       data: { filename: attach.file_name },
     });
   }
+
+await oada.put({
+    path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets`,
+    data: {
+      [trellisname]: {
+        _id,
+        _rev: 0,
+      },
+    },
+    tree: tpDocTypesTree,
+  });
 
   // Mark the ticket closed
   await axios({

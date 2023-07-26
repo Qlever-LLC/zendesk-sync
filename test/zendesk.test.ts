@@ -132,7 +132,7 @@ async function postTicket({
   status?: string,
   from?: { address: string; name: string },
 }) {
-  return (await axios({
+  const ticket = (await axios({
     method: 'post',
     url: `${ZD_DOMAIN}/api/v2/tickets.json`,
     auth: {
@@ -155,7 +155,6 @@ async function postTicket({
         subject: 'Test Subject',
         comment: {
           body: 'This is a test message used while testing the zendesk-sync service. Thanks.',
-          uploads: ['8MIzhgdnkPWNBKBqSs5N9F19v'], //TODO: These expire.
         },
         priority: 'normal',
         status: status ?? 'solved',
@@ -163,6 +162,25 @@ async function postTicket({
       },
     }
   })).data;
+
+  (await axios({
+    method: 'put',
+    url: `${ZD_DOMAIN}/api/v2/tickets/${ticket.ticket.id}`,
+    auth: {
+      username,
+      password,
+    },
+    data: {
+      ticket: {
+        comment: {
+          body: 'Here is the attachment',
+          uploads: ['gvHKUYycZZygimOGNrd4G6ctF'], //TODO: These expire.
+        },
+      },
+    }
+  }));
+
+  return ticket;
 }
 /*
 async function postUpload() {
