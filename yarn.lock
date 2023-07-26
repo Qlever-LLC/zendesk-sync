@@ -474,6 +474,7 @@ __metadata:
     clone-deep: ^4.0.1
     cron: ^2.3.1
     debug: ^4.3.4
+    es-main: ^1.2.0
     eslint: ^8.45.0
     eslint-config-prettier: ^8.8.0
     eslint-config-xo: ^0.43.1
@@ -2640,6 +2641,13 @@ __metadata:
     unbox-primitive: ^1.0.2
     which-typed-array: ^1.1.10
   checksum: 4c5ee900699030a629fc224a3595dcd05f9ff31d607e72bc9042d15e3b1bfde99f408c940b622e96439e755a7b23a3b9e47f3be234015750d32dad38b8f772f4
+  languageName: node
+  linkType: hard
+
+"es-main@npm:^1.2.0":
+  version: 1.2.0
+  resolution: "es-main@npm:1.2.0"
+  checksum: b1feaaa71c0c5b0c494cd7d4f1fdb32fcdc9835b824ca2f61a7fbb899627305d88efef584490c24ebacde79289ac14908823c066176e15a784c49fa924db9b0b
   languageName: node
   linkType: hard
 

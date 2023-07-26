@@ -26,6 +26,7 @@ import axios from 'axios';
 import { CronJob } from 'cron';
 import cloneDeep from 'clone-deep';
 import debug from 'debug';
+import esMain from 'es-main';
 import md5 from 'md5';
 import PQueue from 'p-queue';
 import { tpDocTypesTree } from './tree.js';
@@ -274,4 +275,9 @@ export function watchZendesk(
   return (id: number) => {
     workQueue.delete(id);
   };
+}
+
+if (esMain(import.meta)) {
+  trace('esMain determined to run the service');
+  await run();
 }
