@@ -155,3 +155,7 @@ dist
 !.yarn/plugins
 !.yarn/versions
 .pnp.*
+
+# Template build
+dist-template
+test/output.pdf

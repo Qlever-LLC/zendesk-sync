@@ -39,7 +39,7 @@ const MIME_TYPES: Record<string, string> = {
 };
 
 // FIXME: How to connect to template build?
-const STATIC_PATH = join(process.cwd(), './ticket-build');
+const STATIC_PATH = join(process.cwd(), './dist-template');
 
 const prepareFile = async (url: string) => {
   const paths = [STATIC_PATH, url];
