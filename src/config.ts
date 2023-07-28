@@ -85,7 +85,6 @@ export const { config } = await libConfig({
     env: 'POLL_RATE',
     arg: 'poll-rate',
   },
-
   timeout: {
     doc: 'Time limit for processing a ticket',
     format: Number,

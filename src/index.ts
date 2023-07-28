@@ -48,6 +48,7 @@ const {
   org_field_id: ORG_FIELD_ID,
 } = config.get('zendesk');
 const CONCURRENCY = config.get('concurrency');
+const TIMEOUT = config.get('timeout');
 const JOB_TIMEOUT= config.get('timeout');
 const POLL_RATE = config.get('poll-rate');
 
@@ -56,19 +57,23 @@ const warn = debug('zendesk-sync:warn');
 const trace = debug('zendesk-sync:trace');
 const error = debug('zendesk-sync:error');
 
+// TODO: Temporary: remove after running closed jobs
+const ticks = {};
+
+const workQueue = new Map<number, number>();
 const work = new PQueue({ concurrency: CONCURRENCY });
 let cleanup: (id: number) => void | undefined;
 tpDocTypesTree['resources'] = cloneDeep(
   tpDocTypesTree?.bookmarks?.trellisfw?.['trading-partners'] ?? {}
 );
 
-//TODO: 1. -Watch for organization and SAP ID changes and handle these with trellis-data-manager updates and such.
-//         -Update: should not need to do this with the way its comparing name and sapids then calling 'trading-partners-update'
-//      2. -Error handling: what if any of the http requests in handleTicket fail?
 export async function run() {
   const oada = await connect({ token, domain });
   cleanup = watchZendesk(async (ticket: Ticket) => {
-    work.add(async () => handleTicket(ticket, oada));
+    work.add(async () => {
+      workQueue.set(ticket.id, Date.now());
+      handleTicket(ticket, oada)
+    });
   });
 }
 
@@ -77,23 +82,30 @@ export async function run() {
  * organization has an SAP ID assigned. Called on a regular interval.
  **/
 export async function pollZd(): Promise<Array<Ticket>> {
-  const tickets = await searchTickets('solved');
+  const tickets = await searchTickets('closed');
 
   if (tickets.length > 0)
-    info(`Got tickets: ${tickets.map((t) => t.id).join(',')}`);
+    trace(`Got tickets: ${tickets.map((t) => t.id).join(',')}`);
 
   // Now get the set of tickets with an organization
-  const tixWithOrgs = tickets.filter(
+  let tixWithOrgs = tickets.filter(
     (t) => t?.custom_fields?.[ORG_FIELD_ID] ?? t.organization_id
-  );
+  )
 
-  const picked = tickets.map(
+  const picked = tixWithOrgs.map(
     (t) => (t?.custom_fields?.[ORG_FIELD_ID] ?? t.organization_id) as unknown as number
   );
 
   // Get all mentioned organizations
   const orgs = await getOrgs(
     Array.from(new Set(tixWithOrgs.map((t) => t.organization_id)))
+  );
+
+  tixWithOrgs = tixWithOrgs.map(
+    (t) => ({
+      ...t,
+      organization: orgs[(t?.custom_fields?.[ORG_FIELD_ID] ?? t.organization_id) as unknown as string],
+    })
   );
 
   // Return only those with an SAP_FIELD value
@@ -103,7 +115,7 @@ export async function pollZd(): Promise<Array<Ticket>> {
       orgs[picked[i]!]?.organization_fields[SAP_FIELD] ||
       // Close after 27 days without SAP ID. Otherwise, Zendesk will close it themselves and
       // it won't show up under this query for solved tickets.
-      ((Date.now() - (new Date(t.updated_at) as unknown as number)/24/3_600_000) > 27.0)
+      ((Date.now() - (new Date(t.updated_at) as unknown as number))/24/3_600_000 > 27.0)
   );
 }
 
@@ -121,11 +133,13 @@ export async function handleTicket(
     error('A ticket without an organization is being archived?', archive);
     throw new Error('Ticket must have an organization to archive.');
   }
+  console.log('PROCESSING TICKET', ticket.id);
   const pdf = await generatePdf(archive);
 
-  const sapids = archive.org.organization_fields[SAP_FIELD].split(',').map(
-    (id) => `sap:${id}`
-  );
+  const sapids = archive.org?.organization_fields?.[SAP_FIELD] ?
+    archive.org?.organization_fields?.[SAP_FIELD].split(',').map(
+      (id) => `sap:${id}`
+    ) : [];
   const zid = `zendesk:${archive.org.id}`;
   const { result } = (await doJob(oada, {
     service: 'trellis-data-manager',
@@ -137,7 +151,13 @@ export async function handleTicket(
       },
     },
   })) as unknown as { result: EnsureResult };
-  const tp = result.entry;
+  let tp = result.entry;
+  if (!tp) {
+    tp = result.matches![0].item;
+    if (!tp) {
+      console.log({tp})
+    }
+  }
   if (
     sapids.some((sapid) => !tp.externalIds.includes(sapid)) ||
     tp.name !== archive.org.name
@@ -158,6 +178,7 @@ export async function handleTicket(
   // sync the pdf to Trellis
   //TODO: eliminate edge cases where an attachment may use the dirname or something...
   const trellisname = `${ticket.id}-${md5(JSON.stringify(archive))}`;
+  /*
   const { headers } = await oada.post({
     path: `/resources`,
     data: ticket as unknown as JsonObject,
@@ -229,11 +250,16 @@ await oada.put({
         status: 'closed',
       },
     },
+  ) {
   });
+  */
 
   if (cleanup) {
     trace(`Marked sync operation for ticket [${ticket.id}] as finished.`);
     cleanup(ticket.id);
+    // TODO: Temporary: remove after running closed jobs
+    // @ts-ignore
+    ticks[ticket.id] = true;
   }
   return `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}`;
 }
@@ -245,15 +271,14 @@ await oada.put({
 export function watchZendesk(
   task: (ticket: Ticket) => void
 ): (id: number) => void {
-  const workQueue = new Map<number, number>();
 
   const job = new CronJob(`*/${POLL_RATE} * * * * *`, async () => {
     const start = new Date();
 
     // Iterate over the queue
     for await (const [id, startTime] of workQueue.entries()) {
-      if (start.getTime() > startTime + JOB_TIMEOUT) {
-        warn(`Ticket ${id} sync never completed.`);
+      if (startTime && start.getTime() > startTime + JOB_TIMEOUT) {
+        warn(`Ticket ${id} sync timed out before completion.`);
         workQueue.delete(id);
       }
     }
@@ -261,15 +286,16 @@ export function watchZendesk(
     trace(`${start.toISOString()} Polling Zendesk.`);
 
     // Queue additional items
-    const tickets = await pollZd();
+    let tickets = await pollZd();
+    tickets = tickets.filter(t => !workQueue.has(t.id));
+    info(`Current workQueue size: ${workQueue.size}`);
+    if (tickets.length) info(`Adding tickets to work queue: ${tickets.map(t => t.id).join(', ')}`);
     for await (const ticket of tickets) {
-      if (!workQueue.has(ticket.id)) {
-        trace(`Adding ticket ${ticket.id} to work queue.`);
-        workQueue.set(ticket.id, Date.now());
-
-        // Do task
-        task(ticket);
-      }
+      if (tickets[ticket.id]) continue;
+      trace(`Adding ticket ${ticket.id} to work queue.`);
+      workQueue.set(ticket.id, 0);
+      // Do task
+      task(ticket);
     }
   });
 

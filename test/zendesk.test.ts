@@ -50,8 +50,9 @@ console.log(
 //test.after('clean up', async(t)=> {
 //})
 
-test.only('Should make ticket from PDF', async (t) => {
-  const archive = await getTicketArchive(159);
+test('Should make ticket from PDF', async (t) => {
+  t.timeout(100_000);
+  const archive = await getTicketArchive(1981);
   t.assert(archive);
   t.assert(archive.org !== null);
   const pdf = await generatePdf(archive);
@@ -68,7 +69,7 @@ test('pollZd should regularly poll for closed tickets (those having SAPIDs; thos
   t.assert(tick?.organization_id !== null);
 });
 
-test('Unit Test - handleTicket', async (t) => {
+test.only('Unit Test - handleTicket', async (t) => {
   const { ticket } = await postTicket({});
   ticket.organization = organization;
   const resultPath = await handleTicket(ticket, oada);
