@@ -71,7 +71,6 @@ export async function run() {
   const oada = await connect({ token, domain });
   cleanup = watchZendesk(async (ticket: Ticket) => {
     work.add(async () => {
-      workQueue.set(ticket.id, Date.now());
       handleTicket(ticket, oada)
     });
   });
@@ -128,6 +127,7 @@ export async function handleTicket(
   ticket: Ticket,
   oada: OADAClient
 ): Promise<void | string> {
+  workQueue.set(ticket.id, Date.now());
   const archive = await getTicketArchive(ticket);
   if (archive.org === null) {
     error('A ticket without an organization is being archived?', archive);
