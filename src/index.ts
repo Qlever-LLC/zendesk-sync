@@ -47,8 +47,8 @@ const {
   domain: ZD_DOMAIN,
   org_field_id: ORG_FIELD_ID,
 } = config.get('zendesk');
-const CONCURRENCY = config.get('concurrency');
-const TIMEOUT = config.get('timeout');
+const concurrency = config.get('concurrency');
+//const TIMEOUT = config.get('timeout');
 const JOB_TIMEOUT= config.get('timeout');
 const POLL_RATE = config.get('poll-rate');
 
@@ -61,7 +61,7 @@ const error = debug('zendesk-sync:error');
 const ticks = {};
 
 const workQueue = new Map<number, number>();
-const work = new PQueue({ concurrency: CONCURRENCY });
+const work = new PQueue({ concurrency, timeout: JOB_TIMEOUT });
 let cleanup: (id: number) => void | undefined;
 tpDocTypesTree['resources'] = cloneDeep(
   tpDocTypesTree?.bookmarks?.trellisfw?.['trading-partners'] ?? {}
@@ -70,9 +70,7 @@ tpDocTypesTree['resources'] = cloneDeep(
 export async function run() {
   const oada = await connect({ token, domain });
   cleanup = watchZendesk(async (ticket: Ticket) => {
-    work.add(async () => {
-      handleTicket(ticket, oada)
-    });
+    work.add(async () => handleTicket(ticket, oada));
   });
 }
 
@@ -133,7 +131,7 @@ export async function handleTicket(
     error('A ticket without an organization is being archived?', archive);
     throw new Error('Ticket must have an organization to archive.');
   }
-  console.log('PROCESSING TICKET', ticket.id);
+  console.log('PROCESSING TICKET', ticket.id, 'size:', work.size, 'queue:', work.pending);
   const pdf = await generatePdf(archive);
 
   const sapids = archive.org?.organization_fields?.[SAP_FIELD] ?
@@ -160,6 +158,7 @@ export async function handleTicket(
   }
   if (
     sapids.some((sapid) => !tp.externalIds.includes(sapid)) ||
+
     tp.name !== archive.org.name
   ) {
     await doJob(oada, {
@@ -275,7 +274,8 @@ export function watchZendesk(
   const job = new CronJob(`*/${POLL_RATE} * * * * *`, async () => {
     const start = new Date();
 
-    // Iterate over the queue
+    // The work pqueue will separately time out things, but this prunes them from
+    // workQueue limited to the nearest POLL_RATE interval check.
     for await (const [id, startTime] of workQueue.entries()) {
       if (startTime && start.getTime() > startTime + JOB_TIMEOUT) {
         warn(`Ticket ${id} sync timed out before completion.`);
@@ -291,7 +291,8 @@ export function watchZendesk(
     info(`Current workQueue size: ${workQueue.size}`);
     if (tickets.length) info(`Adding tickets to work queue: ${tickets.map(t => t.id).join(', ')}`);
     for await (const ticket of tickets) {
-      if (tickets[ticket.id]) continue;
+      // @ts-ignore
+      if (ticks[ticket.id.toString()]) continue;
       trace(`Adding ticket ${ticket.id} to work queue.`);
       workQueue.set(ticket.id, 0);
       // Do task
