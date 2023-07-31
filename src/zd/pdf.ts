@@ -58,7 +58,7 @@ const prepareFile = async (url: string) => {
 };
 
 // Don't do anything PDF processing until after the HTTP server is ready
-let ready = new Promise<string>((resolve, reject) => {
+let address = new Promise<string>((resolve, reject) => {
   const server = createServer(async (req, res) => {
     if (req.url) {
       const file = await prepareFile(req.url);
@@ -66,9 +66,8 @@ let ready = new Promise<string>((resolve, reject) => {
       const mimeType = MIME_TYPES[file.ext] || MIME_TYPES.default;
       res.writeHead(statusCode, { 'Content-Type': mimeType });
       file.stream.pipe(res);
-      console.log(`${req.method} ${req.url} ${statusCode}`);
     }
-  }).listen(0);
+  }).listen(0, '127.0.0.1');
 
   server.on('listening', () => {
     let a = server.address();
@@ -76,10 +75,7 @@ let ready = new Promise<string>((resolve, reject) => {
     if (typeof a == 'string') {
       resolve(a);
     } else if (a) {
-      if (a.address === '::') {
-        resolve(`127.0.0.1:${a.port}`);
-      }
-      resolve(`${a.address}:${a.port}`);
+      resolve(`127.0.0.1:${a.port}`);
     } else {
       reject('Could not create local server to serve template.');
     }
@@ -87,8 +83,6 @@ let ready = new Promise<string>((resolve, reject) => {
 });
 
 export async function generatePdf(archive: TicketArchive): Promise<Buffer> {
-  let address = await ready;
-
   const browser = await launch({
     headless: 'new',
     args: [
@@ -114,7 +108,7 @@ export async function generatePdf(archive: TicketArchive): Promise<Buffer> {
   await page.setRequestInterception(true);
 
   page.on('request', (request) => {
-    if (request.url() === 'http://localhost/ticket-data') {
+    if (request.url() === 'http://127.0.0.1/_data') {
       request.respond({
         contentType: 'application/json',
         headers: { 'Access-Control-Allow-Origin': '' },
@@ -125,7 +119,7 @@ export async function generatePdf(archive: TicketArchive): Promise<Buffer> {
     }
   });
 
-  await page.goto(`http://${address}`, {
+  await page.goto(`http://${await address}`, {
     waitUntil: ['load', 'networkidle0'],
   });
 

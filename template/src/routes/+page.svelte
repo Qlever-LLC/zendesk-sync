@@ -2,15 +2,9 @@
   import prettyBytes from 'pretty-bytes';
   import { format, parse } from 'date-fns';
 
-  let p = fetch('http://localhost/ticket-data')
+  let p = fetch('http://127.0.0.1/_data')
     .then((d) => d.json())
-    .then((d) => {
-      d.test = '123';
-      return d;
-    })
     .catch((e) => console.log(e));
-
-  // let p = import("./sample.js").then((d) => d.data);
 
   function formatLongDate(date: string): string {
     return format(
@@ -41,45 +35,49 @@
     <div class="flex-none flex flex-col items-stop">
       <a href="https://centricity.zendesk.com/tickets/{data.ticket.id}">
         <h1 class="text-xl capitalize font-semibold">
-          {data.ticket.via.channel} Ticket #{data.ticket.id}
+          {data?.ticket?.via?.channel} Ticket #{data?.ticket?.id}
         </h1>
       </a>
       <p class="text-base">
-        {data.ticket.via.source.from.name || ''}
+        {data?.ticket?.via?.source?.from?.name || ''}
       </p>
       <p class="text-sm font-light">
-        {data.ticket.via.source.from.address || ''}
+        {data?.ticket?.via?.source?.from?.address || ''}
       </p>
     </div>
   </div>
 
-  <h1 class="font-bold text-3xl mt-4">{data.ticket.subject}</h1>
-  <p class="text-secondary">{data.comments.length} messages</p>
+  <h1 class="font-bold text-3xl mt-4">
+    {data?.ticket?.subject || 'No Subject'}
+  </h1>
+  <p class="text-secondary">{data?.comments?.length || '0'} messages</p>
 
   <div class="stats">
     <div class="stat">
       <div class="stat-title">Status</div>
-      <div class="stat-value capitalize text-primary">{data.ticket.status}</div>
+      <div class="stat-value capitalize text-primary">
+        {data?.ticket?.status || 'Unknown'}
+      </div>
     </div>
 
     <div class="stat">
       <div class="stat-title">Priority</div>
       <div class="stat-value capitalize text-secondary">
-        {data.ticket.priority}
+        {data?.ticket?.priority}
       </div>
     </div>
 
     <div class="stat">
       <div class="stat-title">Opened</div>
       <div class="stat-value text-secondary">
-        {formatYMD(data.ticket.created_at)}
+        {data?.ticket?.created_at && formatYMD(data.ticket.created_at)}
       </div>
     </div>
 
     <div class="stat">
       <div class="stat-title">Last updated</div>
       <div class="stat-value text-secondary">
-        {formatYMD(data.ticket.updated_at)}
+        {data?.ticket?.updated_at && formatYMD(data.ticket.updated_at)}
       </div>
     </div>
   </div>
@@ -87,9 +85,9 @@
   <div class="py-2">
     <div class="text-sm">Assigned to</div>
     <p class="mt-1 mx-2">
-      {data.groups[data.ticket.group_id].name}/{data.users[
-        data.ticket.assignee_id
-      ]?.name}
+      {data?.groups[data?.ticket?.group_id]?.name || 'Unknown'}
+      /
+      {data?.users[data?.ticket?.assignee_id]?.name || 'Unknown'}
     </p>
   </div>
 
@@ -97,17 +95,17 @@
 
   <div class="py-2">
     <div class="text-sm">Tags</div>
-    {#each data.ticket.tags as tag}
+    {#each data?.ticket?.tags || [] as tag}
       <div class="badge badge-lg">{tag}</div>
     {/each}
   </div>
 
   <div class="py-2">
     <div class="text-sm">Request SAP ID</div>
-    {#if data.ticket.organization_id}
+    {#if data?.ticket?.organization_id}
       <div class="badge badge-lg">
-        {data.orgs[data.ticket.organization_id]?.organization_fields?.sap_id ||
-          'none'}
+        {data?.orgs[data?.ticket?.organization_id]?.organization_fields
+          ?.sap_id || 'None'}
       </div>
     {:else}
       None
@@ -124,11 +122,11 @@
         </tr>
       </thead>
       <tbody>
-        {#each data.ticket.custom_fields as field}
+        {#each data?.ticket?.custom_fields as field}
           <tr>
-            <th>{data.ticketFields[field.id].title}</th>
+            <th>{data?.ticketFields[field?.id]?.title || ''}</th>
             <td>
-              {(data.ticketFields[field.id].custom_field_options || []).find(
+              {(data?.ticketFields[field?.id]?.custom_field_options || []).find(
                 (f) => f.value == field.value
               )?.name || '--'}
             </td>
@@ -139,15 +137,15 @@
   </div>
 
   <div class="flex flex-col w-full text-sm">
-    {#each data.comments as comment}
+    {#each data?.comments || [] as comment}
       <div style="break-inside: avoid">
         <div class="divider" />
         <article class="flex">
           <div class="flex-none w-16">
-            {#if data.users[comment.author_id].photo}
+            {#if data?.users[comment?.author_id]?.photo}
               <div class="avatar">
                 <div class="w-12 rounded-full">
-                  <img src={data.users[data.comment.author_id]?.photo} />
+                  <img src={data?.users[comment?.author_id].photo} />
                 </div>
               </div>
             {:else}
@@ -156,7 +154,7 @@
                   class="bg-accent-focus text-neutral-content rounded-full w-12"
                 >
                   <span class="text-3xl">
-                    {data.users[comment.author_id]?.name.substr(0, 1)}
+                    {(data?.users[comment?.author_id]?.name || '').substr(0, 1)}
                   </span>
                 </div>
               </div>
@@ -166,33 +164,39 @@
           <div class="flex-grow">
             <div class="flex flex-row">
               <span class="flex-1 text-bold">
-                {data.users[comment.author_id]?.name}
-                <span class="text-secondary">
-                  &lt;{data.users[comment.author_id].email}&gt;
-                </span>
+                {data?.users[comment?.author_id]?.name || 'Unknown'}
+                {#if data?.users[comment?.author_id]?.email}
+                  <span class="text-secondary">
+                    &lt;{data?.users[comment?.author_id]?.email}&gt;
+                  </span>
+                {/if}
               </span>
 
               <span class="flex-none items-stop"
-                >{formatLongDate(comment.created_at)}</span
+                >{comment?.created_at &&
+                  formatLongDate(comment.created_at)}</span
               >
             </div>
 
             <ul>
               <li>
-                To: "{data.users[comment.author_id]?.name}"
-                <span class="text-secondary">
-                  &lt;{data.users[comment.author_id].email}&gt;
-                </span>
+                To: "{data?.users[comment?.author_id]?.name}"
+                {#if data?.users[comment?.author_id]?.email}
+                  <span class="text-secondary">
+                    &lt;{data?.users[comment?.author_id]?.email}&gt;
+                  </span>
+                {/if}
               </li>
 
-              {#if comment.via.source.to.email_ccs}
+              {#if comment?.via?.source?.to?.email_ccs}
                 <li>
                   CCs:
                   {#each comment.via.source.to.email_ccs as user, i}
-                    "{data.users[user]?.name}"
+                    "{data?.users[user]?.name || 'Unknown'}"
                     <span class="text-secondary">
-                      &lt;{data.users[user]
-                        ?.email}&gt;{#if i != comment.via.source.to.email_ccs.length - 1},
+                      {#if data?.users[user]?.email}
+                        &lt;{data?.users[user]?.email}&gt;
+                        {#if i != comment?.via?.source?.to?.email_ccs?.length - 1},{/if}
                       {/if}
                     </span>
                   {/each}
