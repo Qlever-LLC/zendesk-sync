@@ -58,10 +58,8 @@ const trace = debug('zendesk-sync:trace');
 const error = debug('zendesk-sync:error');
 
 // TODO: Temporary: remove after running closed jobs
-const ticks = {};
-
 const workQueue = new Map<number, number>();
-const work = new PQueue({ concurrency, timeout: JOB_TIMEOUT });
+const work = new PQueue({ concurrency: 1, timeout: JOB_TIMEOUT });
 let cleanup: (id: number) => void | undefined;
 tpDocTypesTree['resources'] = cloneDeep(
   tpDocTypesTree?.bookmarks?.trellisfw?.['trading-partners'] ?? {}
@@ -79,7 +77,7 @@ export async function run() {
  * organization has an SAP ID assigned. Called on a regular interval.
  **/
 export async function pollZd(): Promise<Array<Ticket>> {
-  const tickets = await searchTickets('closed');
+  const tickets = await searchTickets('solved');
 
   if (tickets.length > 0)
     trace(`Got tickets: ${tickets.map((t) => t.id).join(',')}`);
@@ -125,142 +123,137 @@ export async function handleTicket(
   ticket: Ticket,
   oada: OADAClient
 ): Promise<void | string> {
-  workQueue.set(ticket.id, Date.now());
-  const archive = await getTicketArchive(ticket);
-  if (archive.org === null) {
-    error('A ticket without an organization is being archived?', archive);
-    throw new Error('Ticket must have an organization to archive.');
-  }
-  console.log('PROCESSING TICKET', ticket.id, 'size:', work.size, 'queue:', work.pending);
-  const pdf = await generatePdf(archive);
-
-  const sapids = archive.org?.organization_fields?.[SAP_FIELD] ?
-    archive.org?.organization_fields?.[SAP_FIELD].split(',').map(
-      (id) => `sap:${id}`
-    ) : [];
-  const zid = `zendesk:${archive.org.id}`;
-  const { result } = (await doJob(oada, {
-    service: 'trellis-data-manager',
-    type: 'trading-partners-ensure',
-    config: {
-      element: {
-        name: archive.org.name,
-        externalIds: [zid],
-      },
-    },
-  })) as unknown as { result: EnsureResult };
-  let tp = result.entry;
-  if (!tp) {
-    tp = result.matches![0].item;
-    if (!tp) {
-      console.log({tp})
+  try {
+    info(`Processing Ticket [id:${ticket.id}] [size: ${work.size}] [pending: ${work.pending}]`);
+    workQueue.set(ticket.id, Date.now());
+    const archive = await getTicketArchive(ticket);
+    if (archive.org === null) {
+      error('A ticket without an organization is being archived?', archive);
+      throw new Error('Ticket must have an organization to archive.');
     }
-  }
-  if (
-    sapids.some((sapid) => !tp.externalIds.includes(sapid)) ||
-
-    tp.name !== archive.org.name
-  ) {
-    await doJob(oada, {
+    const pdf = await generatePdf(archive);
+    const sapids = archive.org?.organization_fields?.[SAP_FIELD] ?
+      archive.org?.organization_fields?.[SAP_FIELD].split(',').map(
+        (id) => `sap:${id}`
+      ) : [];
+    const zid = `zendesk:${archive.org.id}`;
+    const { result } = (await doJob(oada, {
       service: 'trellis-data-manager',
-      type: 'trading-partners-update',
+      type: 'trading-partners-ensure',
       config: {
         element: {
-          masterid: tp.masterid,
           name: archive.org.name,
-          externalIds: [zid, ...sapids],
+          externalIds: [zid],
         },
       },
+    })) as unknown as { result: EnsureResult };
+    let tp = result.entry;
+    if (!tp) {
+      tp = result.matches![0].item;
+      if (!tp) {
+        error(`Failed to find single trading-partner for ticket ${ticket.id} organization ${archive.org.name}`);
+      }
+    }
+    if (
+      sapids.some((sapid) => !tp.externalIds.includes(sapid)) ||
+      tp.name !== archive.org.name
+    ) {
+      await doJob(oada, {
+        service: 'trellis-data-manager',
+        type: 'trading-partners-update',
+        config: {
+          element: {
+            masterid: tp.masterid,
+            name: archive.org.name,
+            externalIds: [zid, ...sapids],
+          },
+        },
+      });
+    }
+
+    // sync the pdf to Trellis
+    const trellisname = `${ticket.id}-${md5(JSON.stringify(archive))}`;
+    const { headers } = await oada.post({
+      path: `/resources`,
+      data: ticket as unknown as JsonObject,
+      contentType: 'application/vnd.zendesk.ticket.1+json',
     });
-  }
+    const _id = headers['content-location']!.replace(/^\//, '');
 
-  // sync the pdf to Trellis
-  //TODO: eliminate edge cases where an attachment may use the dirname or something...
-  const trellisname = `${ticket.id}-${md5(JSON.stringify(archive))}`;
-  /*
-  const { headers } = await oada.post({
-    path: `/resources`,
-    data: ticket as unknown as JsonObject,
-    contentType: 'application/vnd.zendesk.ticket.1+json',
-  });
-  const _id = headers['content-location']!.replace(/^\//, '');
+    await oada.put({
+      path: `/${_id}/_meta`,
+      data: {
+        shared: 'outgoing'
+      },
+    });
 
-  await oada.put({
-    path: `/${_id}/_meta`,
-    data: {
-      shared: 'outgoing'
-    },
-  });
-
-  let pdfid = md5(archive.toString());
-  await oada.put({
-    path: `/${_id}/_meta/vdoc/pdf/${pdfid}`,
-    data: pdf,
-    headers: { 'x-oada-ensure-link': 'unversioned' },
-    contentType: 'application/pdf',
-  });
-  await oada.put({
-    path: `/${_id}/_meta/vdoc/pdf/${pdfid}/_meta`,
-    data: { filename: `Ticket${trellisname}_MessageContent.pdf` },
-  });
-
-  for await (const attach of Object.values(archive.attachments)) {
-    const buff = (
-      (await axios({
-        method: 'get',
-        url: attach.content_url,
-        responseType: 'arraybuffer',
-      })) as unknown as { data: string }
-    ).data;
-    pdfid = md5(buff.toString() + ' ;');
+    let pdfid = md5(archive.toString());
     await oada.put({
       path: `/${_id}/_meta/vdoc/pdf/${pdfid}`,
-      data: Buffer.from(buff, 'utf-8'),
+      data: pdf,
       headers: { 'x-oada-ensure-link': 'unversioned' },
-      contentType: attach.content_type,
+      contentType: 'application/pdf',
     });
     await oada.put({
       path: `/${_id}/_meta/vdoc/pdf/${pdfid}/_meta`,
-      data: { filename: attach.file_name },
+      data: { filename: `Ticket${trellisname}_Ticket.pdf` },
     });
-  }
 
-await oada.put({
-    path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets`,
-    data: {
-      [trellisname]: {
-        _id,
-        _rev: 0,
+    for await (const attach of Object.values(archive.attachments)) {
+      const buff = (
+        (await axios({
+          method: 'get',
+          url: attach.content_url,
+          responseType: 'arraybuffer',
+        })) as unknown as { data: string }
+      ).data;
+      pdfid = md5(buff.toString() + ' ;');
+      await oada.put({
+        path: `/${_id}/_meta/vdoc/pdf/${pdfid}`,
+        data: Buffer.from(buff, 'utf-8'),
+        headers: { 'x-oada-ensure-link': 'unversioned' },
+        contentType: attach.content_type,
+      });
+      await oada.put({
+        path: `/${_id}/_meta/vdoc/pdf/${pdfid}/_meta`,
+        data: { filename: attach.file_name },
+      });
+    }
+
+  await oada.put({
+      path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets`,
+      data: {
+        [trellisname]: {
+          _id,
+          _rev: 0,
+        },
       },
-    },
-    tree: tpDocTypesTree,
-  });
+      tree: tpDocTypesTree,
+    });
 
-  // Mark the ticket closed
-  await axios({
-    method: 'put',
-    url: `${ZD_DOMAIN}/api/v2/tickets/${ticket.id}.json`,
-    auth: {
-      username,
-      password,
-    },
-    data: {
-      ticket: {
-        status: 'closed',
+    // Mark the ticket closed
+    await axios({
+      method: 'put',
+      url: `${ZD_DOMAIN}/api/v2/tickets/${ticket.id}.json`,
+      auth: {
+        username,
+        password,
       },
-    },
-  ) {
-  });
-  */
+      data: {
+        ticket: {
+          status: 'closed',
+        },
+      },
+    });
 
-  if (cleanup) {
-    trace(`Marked sync operation for ticket [${ticket.id}] as finished.`);
-    cleanup(ticket.id);
-    // TODO: Temporary: remove after running closed jobs
-    // @ts-ignore
-    ticks[ticket.id] = true;
+    if (cleanup) {
+      trace(`Marked sync operation for ticket [${ticket.id}] as finished.`);
+      cleanup(ticket.id);
+    }
+    return `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}`;
+  } catch(err) {
+    error(err)
   }
-  return `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}`;
 }
 /**
  * The main polling loop for running a task on zendesk tickets
@@ -291,8 +284,6 @@ export function watchZendesk(
     info(`Current workQueue size: ${workQueue.size}`);
     if (tickets.length) info(`Adding tickets to work queue: ${tickets.map(t => t.id).join(', ')}`);
     for await (const ticket of tickets) {
-      // @ts-ignore
-      if (ticks[ticket.id.toString()]) continue;
       trace(`Adding ticket ${ticket.id} to work queue.`);
       workQueue.set(ticket.id, 0);
       // Do task
@@ -303,7 +294,9 @@ export function watchZendesk(
   job.start();
 
   return (id: number) => {
-    workQueue.delete(id);
+    // Zendesk does not promptly update tickets after closing them out. Use this to
+    // avoid requeuing a recently-closed ticket.
+    setTimeout(() => workQueue.delete(id), 60_000);
   };
 }
 
