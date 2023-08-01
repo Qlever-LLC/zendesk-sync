@@ -59,7 +59,7 @@ const error = debug('zendesk-sync:error');
 
 // TODO: Temporary: remove after running closed jobs
 const workQueue = new Map<number, number>();
-const work = new PQueue({ concurrency: 1, timeout: JOB_TIMEOUT });
+const work = new PQueue({ concurrency, timeout: JOB_TIMEOUT });
 let cleanup: (id: number) => void | undefined;
 tpDocTypesTree['resources'] = cloneDeep(
   tpDocTypesTree?.bookmarks?.trellisfw?.['trading-partners'] ?? {}
