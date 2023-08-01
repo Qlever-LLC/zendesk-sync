@@ -1,6 +1,6 @@
 {
   "name": "@qlever-llc/zendesk-sync",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Sync zendesk tickets to trellis",
   "main": "dist/index.js",
   "type": "module",
@@ -18,7 +18,7 @@
     "test": "tsc -b && c8 ava",
     "test:debug": "ava -T 60m -svc 1 --no-worker-threads",
     "lint": "eslint .",
-    "tempalte:dev": "cd template && vite dev",
+    "template:dev": "cd template && vite dev",
     "template:build": "cd template && vite build",
     "template:preview": "cd template && vite preview",
     "template:check": "cd template && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

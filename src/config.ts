@@ -35,6 +35,13 @@ export const { config } = await libConfig({
     },
   },
   zendesk: {
+    delay: {
+      doc: 'Zendesk delay for writes to take effect',
+      format: Number,
+      default: 120_000,
+      env: 'ZD_DELAY',
+      arg: 'zd_delay',
+    },
     domain: {
       doc: 'Zendesk API domain',
       format: String,

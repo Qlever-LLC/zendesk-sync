@@ -46,6 +46,7 @@ const {
   password,
   domain: ZD_DOMAIN,
   org_field_id: ORG_FIELD_ID,
+  delay: ZD_DELAY,
 } = config.get('zendesk');
 const concurrency = config.get('concurrency');
 //const TIMEOUT = config.get('timeout');
@@ -296,7 +297,7 @@ export function watchZendesk(
   return (id: number) => {
     // Zendesk does not promptly update tickets after closing them out. Use this to
     // avoid requeuing a recently-closed ticket.
-    setTimeout(() => workQueue.delete(id), 60_000);
+    setTimeout(() => workQueue.delete(id), ZD_DELAY);
   };
 }
 

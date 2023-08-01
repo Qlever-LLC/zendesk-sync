@@ -34,7 +34,7 @@ RUN yarn install --immutable
 COPY . ${DIR}
 
 # Build code and remove dev deps
-RUN yarn build --verbose && yarn build:template --verbose && rm -rfv .yarn .pnp*
+RUN yarn build --verbose && yarn template:build --verbose && rm -rfv .yarn .pnp*
 
 FROM node:$NODE_VER AS production
 ARG DIR
