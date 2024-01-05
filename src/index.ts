@@ -85,11 +85,11 @@ export async function pollZd(): Promise<Array<Ticket>> {
 
   // Now get the set of tickets with an organization
   let tixWithOrgs = tickets.filter(
-    (t) => t?.custom_fields?.[ORG_FIELD_ID] ?? t.organization_id
+    (t) => (t?.custom_fields.some((cf) => cf.id === ORG_FIELD_ID && cf.value) || t.organization_id)
   )
 
   const picked = tixWithOrgs.map(
-    (t) => (t?.custom_fields?.[ORG_FIELD_ID] ?? t.organization_id) as unknown as number
+    (t) => (t?.custom_fields.find((cf) => cf.id === ORG_FIELD_ID)?.value ?? t.organization_id) as unknown as number
   );
 
   // Get all mentioned organizations

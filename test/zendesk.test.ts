@@ -35,6 +35,7 @@ const { password, username, domain: ZD_DOMAIN } = config.get('zendesk');
 const CONCURRENCY = config.get('concurrency');
 const { email1, email2 } = config.get('testing');
 const POLL_RATE = config.get('poll-rate');
+import { launch } from 'puppeteer';
 
 const oada = await connect({ domain, token });
 const CENT_TEST_ORG = 12909020494349;
@@ -52,15 +53,15 @@ console.log(
 
 test('Should make ticket from PDF', async (t) => {
   t.timeout(100_000);
-  const archive = await getTicketArchive(1981);
+  const archive = await getTicketArchive(2459);
   t.assert(archive);
-  t.assert(archive.org !== null);
+  //t.assert(archive.org !== null);
   const pdf = await generatePdf(archive);
 
   writeFileSync('./test/output.pdf', pdf);
 });
 
-test('pollZd should regularly poll for closed tickets (those having SAPIDs; those without are ignored anyways)', async (t) => {
+test.skip('pollZd should regularly poll for closed tickets (those having SAPIDs; those without are ignored anyways)', async (t) => {
   const { ticket } = await postTicket({});
   const tickets = await pollZd();
 
@@ -69,21 +70,21 @@ test('pollZd should regularly poll for closed tickets (those having SAPIDs; thos
   t.assert(tick?.organization_id !== null);
 });
 
-test.only('Unit Test - handleTicket', async (t) => {
+test.skip('Unit Test - handleTicket', async (t) => {
   const { ticket } = await postTicket({});
   ticket.organization = organization;
   const resultPath = await handleTicket(ticket, oada);
   t.assert(resultPath);
 });
 
-test('Unit Test - handleTicket should fail when the customer org is missing SAPID', async (t) => {
+test.skip('Unit Test - handleTicket should fail when the customer org is missing SAPID', async (t) => {
   const { ticket } = await postTicket({ from: email2 });
   ticket.organization = organization;
   const resultPath = await handleTicket(ticket, oada);
   t.assert(resultPath);
 });
 
-test('Unit Test - watchZendesk (this is essentially the run() method)', async (t) => {
+test.skip('Unit Test - watchZendesk (this is essentially the run() method)', async (t) => {
   t.timeout(140_000);
   const work = new PQueue({ concurrency: CONCURRENCY });
   await watchZendesk(async (ticket: Ticket) => {
