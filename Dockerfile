@@ -41,7 +41,10 @@ ARG DIR
 
 # Install needed packages
 RUN apk add --no-cache \
-  dumb-init
+  dumb-init \
+  chromium
+
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Do not run service as root
 USER node
