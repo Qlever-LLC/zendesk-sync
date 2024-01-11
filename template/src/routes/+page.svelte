@@ -19,6 +19,13 @@
       'MM/dd/yyyy'
     );
   }
+
+  function formatYMD2(date: string): string {
+    return format(
+      parse(date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", new Date()),
+      'MM/dd/yyyy'
+    );
+  }
 </script>
 
 {#await p then data}
@@ -95,26 +102,32 @@
 
   <div class="py-2">
     <div class="text-sm">Tags</div>
-    {#each data?.ticket?.tags || [] as tag}
-      <div class="badge badge-lg">{tag}</div>
-    {/each}
+    {#if data?.ticket?.tags.length > 0}
+      {#each data?.ticket?.tags || [] as tag}
+        <div class="badge badge-lg">{tag}</div>
+      {/each}
+    {:else}
+      <div class="badge badge-lg">
+        <span class="italic">None</span>
+      </div>
+    {/if}
   </div>
 
   <div class="py-2">
     <div class="text-sm">Request SAP ID</div>
-    {#if data?.ticket?.organization_id}
-      <div class="badge badge-lg">
+    <div class="badge badge-lg">
+      {#if data?.ticket?.organization_id}
         {data?.orgs[data?.ticket?.organization_id]?.organization_fields
-          ?.sap_id || 'None'}
-      </div>
-    {:else}
-      None
-    {/if}
+          ?.sap_id || '--'}
+      {:else}
+        <span class="italic">None</span>
+      {/if}
+    </div>
   </div>
 
   <div class="py-2 max-w-lg">
     <div class="text-sm mb-2">Custom Fields</div>
-    <table class="table table-xs table-zebra min-w-min">
+    <table class="table table-xs table-zebra min-w-full">
       <thead>
         <tr>
           <th>Field</th>
@@ -134,6 +147,55 @@
         {/each}
       </tbody>
     </table>
+  </div>
+
+  <div class="py-2">
+    <div class="text-sm">Side Conversations</div>
+    {#if data?.sideConversations?.length > 0}
+      <table class="table table-xs table-zebra min-w-fit">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Users</th>
+            <th>Subject</th>
+            <th>Type</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each data?.sideConversations as conv}
+            <tr>
+              <td>{conv.created_at && formatYMD2(conv.created_at)}</td>
+              <td>{conv.state}</td>
+              <td>
+                {#each conv.participants as user}
+                  <div>
+                    {data?.users[user.user_id]?.name || 'Unknown'}
+                    {#if data?.users[user.user_id]?.email}
+                      <span class="text-secondary text-[75%]">
+                        &lt;{data?.users[user.user_id]?.email}&gt;
+                      </span>
+                    {/if}
+                  </div>
+                {/each}
+              </td>
+              <td><a href={conv.url}>{conv.subject}</a></td>
+              <td>
+                {#if conv.external_ids?.targetTicketId}Ticket{:else}Email{/if}
+                <br />
+                <a href={conv.url}>
+                  <span class="text-[75%] text-nowrap">ID: {conv.id}</span>
+                </a>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    {:else}
+      <div class="badge badge-lg">
+        <span class="italic">None</span>
+      </div>
+    {/if}
   </div>
 
   <div class="flex flex-col w-full text-sm">

@@ -48,7 +48,7 @@ const prepareFile = async (url: string) => {
   const pathTraversal = !filePath.startsWith(STATIC_PATH);
   const exists = await access(filePath).then(
     () => true,
-    () => false
+    () => false,
   );
   const found = !pathTraversal && exists;
   const streamPath = found ? filePath : STATIC_PATH + '/404.html';
@@ -98,11 +98,11 @@ export async function generatePdf(archive: TicketArchive): Promise<Buffer> {
     .on('load', trace)
     .on('error', error)
     .on('console', (message) =>
-      info(`${message.type().substring(0, 3).toUpperCase()} ${message.text()}`)
+      info(`${message.type().substring(0, 3).toUpperCase()} ${message.text()}`),
     )
     .on('pageerror', error)
     .on('requestfailed', (request) =>
-      warn(`${request.failure()?.errorText} ${request.url()}`)
+      warn(`${request.failure()?.errorText} ${request.url()}`),
     );
 
   await page.setRequestInterception(true);
