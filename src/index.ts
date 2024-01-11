@@ -33,12 +33,14 @@ import { tpDocTypesTree } from './tree.js';
 import {
   EnsureResult,
   getOrgs,
+  getTicket,
   getTicketArchive,
   SAP_FIELD,
   searchTickets,
   Ticket,
 } from './zd/zendesk.js';
 import { generatePdf } from './zd/pdf.js';
+import { writeFileSync } from 'node:fs';
 // Stuff from config
 const { token, domain } = config.get('oada');
 const {
@@ -50,7 +52,7 @@ const {
 } = config.get('zendesk');
 const concurrency = config.get('concurrency');
 //const TIMEOUT = config.get('timeout');
-const JOB_TIMEOUT= config.get('timeout');
+const JOB_TIMEOUT = config.get('timeout');
 const POLL_RATE = config.get('poll-rate');
 
 const info = debug('zendesk-sync:info');
@@ -63,14 +65,21 @@ const workQueue = new Map<number, number>();
 const work = new PQueue({ concurrency, timeout: JOB_TIMEOUT });
 let cleanup: (id: number) => void | undefined;
 tpDocTypesTree['resources'] = cloneDeep(
-  tpDocTypesTree?.bookmarks?.trellisfw?.['trading-partners'] ?? {}
+  tpDocTypesTree?.bookmarks?.trellisfw?.['trading-partners'] ?? {},
 );
 
 export async function run() {
-  const oada = await connect({ token, domain });
-  cleanup = watchZendesk(async (ticket: Ticket) => {
-    work.add(async () => handleTicket(ticket, oada));
-  });
+  //////////////  const oada = await connect({ token, domain });
+  const oada = {};
+  // cleanup = watchZendesk(async (ticket: Ticket) => {
+  //   work.add(async () => handleTicket(ticket, oada as OADAClient));
+  // });
+  info('Starting up...');
+  try {
+    handleTicket(await getTicket(72), oada as OADAClient);
+  } catch (e) {
+    error(e);
+  }
 }
 
 /**
@@ -85,24 +94,30 @@ export async function pollZd(): Promise<Array<Ticket>> {
 
   // Now get the set of tickets with an organization
   let tixWithOrgs = tickets.filter(
-    (t) => (t?.custom_fields.some((cf) => cf.id === ORG_FIELD_ID && cf.value) || t.organization_id)
-  )
+    (t) =>
+      t?.custom_fields.some((cf) => cf.id === ORG_FIELD_ID && cf.value) ||
+      t.organization_id,
+  );
 
   const picked = tixWithOrgs.map(
-    (t) => (t?.custom_fields.find((cf) => cf.id === ORG_FIELD_ID)?.value ?? t.organization_id) as unknown as number
+    (t) =>
+      (t?.custom_fields.find((cf) => cf.id === ORG_FIELD_ID)?.value ??
+        t.organization_id) as unknown as number,
   );
 
   // Get all mentioned organizations
   const orgs = await getOrgs(
-    Array.from(new Set(tixWithOrgs.map((t) => t.organization_id)))
+    Array.from(new Set(tixWithOrgs.map((t) => t.organization_id))),
   );
 
-  tixWithOrgs = tixWithOrgs.map(
-    (t) => ({
-      ...t,
-      organization: orgs[(t?.custom_fields?.[ORG_FIELD_ID] ?? t.organization_id) as unknown as string],
-    })
-  );
+  tixWithOrgs = tixWithOrgs.map((t) => ({
+    ...t,
+    organization:
+      orgs[
+      (t?.custom_fields?.[ORG_FIELD_ID] ??
+        t.organization_id) as unknown as string
+      ],
+  }));
 
   // Return only those with an SAP_FIELD value
   return tixWithOrgs.filter(
@@ -111,7 +126,10 @@ export async function pollZd(): Promise<Array<Ticket>> {
       orgs[picked[i]!]?.organization_fields[SAP_FIELD] ||
       // Close after 27 days without SAP ID. Otherwise, Zendesk will close it themselves and
       // it won't show up under this query for solved tickets.
-      ((Date.now() - (new Date(t.updated_at) as unknown as number))/24/3_600_000 > 27.0)
+      (Date.now() - (new Date(t.updated_at) as unknown as number)) /
+      24 /
+      3_600_000 >
+      27.0,
   );
 }
 
@@ -122,21 +140,36 @@ export async function pollZd(): Promise<Array<Ticket>> {
  */
 export async function handleTicket(
   ticket: Ticket,
-  oada: OADAClient
+  oada: OADAClient,
 ): Promise<void | string> {
   try {
-    info(`Processing Ticket [id:${ticket.id}] [size: ${work.size}] [pending: ${work.pending}]`);
+    // FIXME: Remove
+    console.log(oada);
+    info(
+      `Processing Ticket [id:${ticket.id}] [size: ${work.size}] [pending: ${work.pending}]`,
+    );
     workQueue.set(ticket.id, Date.now());
     const archive = await getTicketArchive(ticket);
     if (archive.org === null) {
       error('A ticket without an organization is being archived?', archive);
       throw new Error('Ticket must have an organization to archive.');
     }
+
     const pdf = await generatePdf(archive);
-    const sapids = archive.org?.organization_fields?.[SAP_FIELD] ?
-      archive.org?.organization_fields?.[SAP_FIELD].split(',').map(
-        (id) => `sap:${id}`
-      ) : [];
+
+    // FIXME: Remove
+    info('Writing output PDF');
+    writeFileSync('./output.pdf', pdf);
+    info('Goodbye');
+    process.exit();
+
+    // FIXME: un-comment
+    /*
+    const sapids = archive.org?.organization_fields?.[SAP_FIELD]
+      ? archive.org?.organization_fields?.[SAP_FIELD].split(',').map(
+        (id) => `sap:${id}`,
+      )
+      : [];
     const zid = `zendesk:${archive.org.id}`;
     const { result } = (await doJob(oada, {
       service: 'trellis-data-manager',
@@ -152,7 +185,9 @@ export async function handleTicket(
     if (!tp) {
       tp = result.matches![0].item;
       if (!tp) {
-        error(`Failed to find single trading-partner for ticket ${ticket.id} organization ${archive.org.name}`);
+        error(
+          `Failed to find single trading-partner for ticket ${ticket.id} organization ${archive.org.name}`,
+        );
       }
     }
     if (
@@ -184,7 +219,7 @@ export async function handleTicket(
     await oada.put({
       path: `/${_id}/_meta`,
       data: {
-        shared: 'outgoing'
+        shared: 'outgoing',
       },
     });
 
@@ -221,7 +256,7 @@ export async function handleTicket(
       });
     }
 
-  await oada.put({
+    await oada.put({
       path: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets`,
       data: {
         [trellisname]: {
@@ -246,14 +281,15 @@ export async function handleTicket(
         },
       },
     });
+    */
 
     if (cleanup) {
       trace(`Marked sync operation for ticket [${ticket.id}] as finished.`);
       cleanup(ticket.id);
     }
-    return `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}`;
-  } catch(err) {
-    error(err)
+    //return `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}`;
+  } catch (err) {
+    error(err);
   }
 }
 /**
@@ -262,9 +298,8 @@ export async function handleTicket(
  * @returns
  */
 export function watchZendesk(
-  task: (ticket: Ticket) => void
+  task: (ticket: Ticket) => void,
 ): (id: number) => void {
-
   const job = new CronJob(`*/${POLL_RATE} * * * * *`, async () => {
     const start = new Date();
 
@@ -281,9 +316,12 @@ export function watchZendesk(
 
     // Queue additional items
     let tickets = await pollZd();
-    tickets = tickets.filter(t => !workQueue.has(t.id));
+    tickets = tickets.filter((t) => !workQueue.has(t.id));
     info(`Current workQueue size: ${workQueue.size}`);
-    if (tickets.length) info(`Adding tickets to work queue: ${tickets.map(t => t.id).join(', ')}`);
+    if (tickets.length)
+      info(
+        `Adding tickets to work queue: ${tickets.map((t) => t.id).join(', ')}`,
+      );
     for await (const ticket of tickets) {
       trace(`Adding ticket ${ticket.id} to work queue.`);
       workQueue.set(ticket.id, 0);

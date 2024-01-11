@@ -28,14 +28,14 @@ export async function getTicket(ticket: number | Ticket): Promise<Ticket> {
           username,
           password,
         },
-      }) as unknown as { data: { ticket: Ticket } }
+      }) as unknown as { data: { ticket: Ticket } },
   )();
 
   return r.data.ticket;
 }
 
 export async function getTicketArchive(
-  tix: number | Ticket
+  tix: number | Ticket,
 ): Promise<TicketArchive> {
   // Fetch even if we have ticket JSON to include the "?included=" fields
   const ticket = await getTicket(tix);
@@ -59,14 +59,20 @@ export async function getTicketArchive(
     comments
       .map((c) => c.attachments)
       .flat()
-      .filter((user, index, array) => array.indexOf(user) === index)
+      .filter((user, index, array) => array.indexOf(user) === index),
   );
+
+  //////////////////////////////
+  // Fetch side conversations //
+  //////////////////////////////
+  let sideConversations = await getSideConversationsFromTicket(ticket);
 
   /////////////////
   // Fetch users //
   /////////////////
   let ids = comments
     .map((c) => [c.author_id, ...(c.via.source.to.email_ccs || [])])
+    .concat(sideConversations.map((s) => s.participants.map((p) => p.user_id)))
     .flat()
     .filter((user, index, array) => array.indexOf(user) === index);
 
@@ -91,6 +97,7 @@ export async function getTicketArchive(
     orgs,
     groups,
     ticketFields,
+    sideConversations,
   };
 }
 
@@ -110,7 +117,7 @@ export async function searchTickets(status: string): Promise<Array<Ticket>> {
           type: 'ticket',
           query: `type:ticket status:${status}`,
         },
-      }) as Promise<{ data: SearchResponse }>
+      }) as Promise<{ data: SearchResponse }>,
   )();
 
   tickets.push(...r.data.results);
@@ -124,7 +131,7 @@ export async function searchTickets(status: string): Promise<Array<Ticket>> {
           username,
           password,
         },
-      })
+      }),
     )();
 
     tickets.push(...r.data.results);
@@ -134,7 +141,7 @@ export async function searchTickets(status: string): Promise<Array<Ticket>> {
 }
 
 export async function getOrgsFromTicket(
-  ticket: Ticket
+  ticket: Ticket,
 ): Promise<Record<string, Org>> {
   let ids = [];
 
@@ -145,7 +152,7 @@ export async function getOrgsFromTicket(
 
   // check for customer org
   const f = ticket.custom_fields.find(
-    (f) => f.id === ORG_FIELD_ID && f.value !== null
+    (f) => f.id === ORG_FIELD_ID && f.value !== null,
   );
 
   if (f) {
@@ -156,7 +163,7 @@ export async function getOrgsFromTicket(
 }
 
 export async function getCommentsFromTicket(
-  ticket: Ticket
+  ticket: Ticket,
 ): Promise<Array<Comment>> {
   let comments: Array<Comment> = [];
 
@@ -169,7 +176,7 @@ export async function getCommentsFromTicket(
           username,
           password,
         },
-      }) as Promise<{ data: CommentsResponse }>
+      }) as Promise<{ data: CommentsResponse }>,
   )();
 
   comments.push(...r.data.comments);
@@ -183,7 +190,7 @@ export async function getCommentsFromTicket(
           username,
           password,
         },
-      })
+      }),
     )();
 
     comments.push(...r.data.comments);
@@ -192,8 +199,45 @@ export async function getCommentsFromTicket(
   return comments;
 }
 
+export async function getSideConversationsFromTicket(
+  ticket: Ticket,
+): Promise<Array<SideConversation>> {
+  let sideConversations: Array<SideConversation> = [];
+
+  let r = await throttle(
+    async () =>
+      axios({
+        method: 'get',
+        url: `${ZD_DOMAIN}/api/v2/tickets/${ticket.id}/side_conversations`,
+        auth: {
+          username,
+          password,
+        },
+      }) as Promise<{ data: SideConverstationResponse }>,
+  )();
+
+  sideConversations.push(...r.data.side_conversations);
+
+  while (r.data.next_page) {
+    r = await throttle(async () =>
+      axios({
+        method: 'get',
+        url: r.data.next_page as unknown as string,
+        auth: {
+          username,
+          password,
+        },
+      }),
+    )();
+
+    sideConversations.push(...r.data.side_conversations);
+  }
+
+  return sideConversations;
+}
+
 export async function getOrgs(
-  orgs: Array<number | null>
+  orgs: Array<number | null>,
 ): Promise<Record<string, Org>> {
   if (!orgs.length) {
     return {};
@@ -213,7 +257,7 @@ export async function getOrgs(
         params: {
           ids: orgs.join(','),
         },
-      }) as unknown as { data: OrgManyResponse }
+      }) as unknown as { data: OrgManyResponse },
   )();
 
   organizations.push(...r.data.organizations);
@@ -227,7 +271,7 @@ export async function getOrgs(
           username,
           password,
         },
-      })
+      }),
     )();
 
     organizations.push(...r.data.organizations);
@@ -237,7 +281,7 @@ export async function getOrgs(
 }
 
 export async function getUsers(
-  ids: Array<number | null>
+  ids: Array<number | null>,
 ): Promise<Record<string, User>> {
   if (!ids.length) {
     return {};
@@ -257,7 +301,7 @@ export async function getUsers(
         params: {
           ids: ids.join(','),
         },
-      }) as unknown as { data: UserManyResponse }
+      }) as unknown as { data: UserManyResponse },
   )();
 
   users.push(...r.data.users);
@@ -271,7 +315,7 @@ export async function getUsers(
           username,
           password,
         },
-      })
+      }),
     )();
 
     users.push(...r.data.users);
@@ -292,7 +336,7 @@ export async function getGroups(): Promise<Record<string, Group>> {
           username,
           password,
         },
-      }) as unknown as { data: GroupManyResponse }
+      }) as unknown as { data: GroupManyResponse },
   )();
 
   groups.push(...r.data.groups);
@@ -306,7 +350,7 @@ export async function getGroups(): Promise<Record<string, Group>> {
           username,
           password,
         },
-      })
+      }),
     )();
 
     groups.push(...r.data.groups);
@@ -327,7 +371,7 @@ export async function getTicketFields(): Promise<Record<string, TicketField>> {
           username,
           password,
         },
-      }) as unknown as { data: TicketFieldManyResponse }
+      }) as unknown as { data: TicketFieldManyResponse },
   )();
 
   ticketFields.push(...r.data.ticket_fields);
@@ -341,7 +385,7 @@ export async function getTicketFields(): Promise<Record<string, TicketField>> {
           username,
           password,
         },
-      })
+      }),
     )();
 
     ticketFields.push(...r.data.ticket_fields);
@@ -351,12 +395,15 @@ export async function getTicketFields(): Promise<Record<string, TicketField>> {
 }
 
 function indexById<T extends { id: number }>(
-  data: Array<T>
+  data: Array<T>,
 ): Record<string, T> {
-  return data.reduce((cur, next) => {
-    cur[next.id] = next;
-    return cur;
-  }, {} as Record<number, T>);
+  return data.reduce(
+    (cur, next) => {
+      cur[next.id] = next;
+      return cur;
+    },
+    {} as Record<number, T>,
+  );
 }
 
 // TYPES
@@ -372,6 +419,7 @@ export interface TicketArchive {
   orgs: Record<number, Org>;
   groups: Record<number, Group>;
   ticketFields: Record<number, TicketField>;
+  sideConversations: Array<SideConversation>;
 }
 
 export interface Org {
@@ -528,6 +576,36 @@ export interface Comment {
 
 interface CommentsResponse {
   comments: Array<Comment>;
+  next_page: string | null;
+  previous_page: string | null;
+  count: number;
+}
+
+export interface SideConversation {
+  url: string;
+  id: string;
+  ticket_id: number;
+  subject: string;
+  preview_text: string;
+  state: string;
+  participants: Array<{
+    user_id: number;
+    name: string;
+    email: string;
+  }>;
+  created_at: string;
+  updated_at: string;
+  message_added_at: string;
+  state_updated_at: string;
+  external_ids:
+  | {}
+  | {
+    targetTicketId: number;
+  };
+}
+
+interface SideConverstationResponse {
+  side_conversations: Array<SideConversation>;
   next_page: string | null;
   previous_page: string | null;
   count: number;
