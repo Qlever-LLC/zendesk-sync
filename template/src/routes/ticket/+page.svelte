@@ -1,31 +1,10 @@
 <script lang="ts">
   import prettyBytes from 'pretty-bytes';
-  import { format, parse } from 'date-fns';
+  import { formatLongDate, formatYMD, formatYMD2 } from '../utils';
 
   let p = fetch('http://127.0.0.1/_data')
     .then((d) => d.json())
     .catch((e) => console.log(e));
-
-  function formatLongDate(date: string): string {
-    return format(
-      parse(date, "yyyy-MM-dd'T'HH:mm:ssXXX", new Date()),
-      "PP 'at' p"
-    );
-  }
-
-  function formatYMD(date: string): string {
-    return format(
-      parse(date, "yyyy-MM-dd'T'HH:mm:ssXXX", new Date()),
-      'MM/dd/yyyy'
-    );
-  }
-
-  function formatYMD2(date: string): string {
-    return format(
-      parse(date, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", new Date()),
-      'MM/dd/yyyy'
-    );
-  }
 </script>
 
 {#await p then data}
@@ -40,7 +19,10 @@
     </div>
 
     <div class="flex-none flex flex-col items-stop">
-      <a href="https://centricity.zendesk.com/tickets/{data.ticket.id}">
+      <a
+        href="https://smithfield-docs.zendesk.com/agent/tickets/{data.ticket
+          .id}"
+      >
         <h1 class="text-xl capitalize font-semibold">
           {data?.ticket?.via?.channel} Ticket #{data?.ticket?.id}
         </h1>
@@ -163,7 +145,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each data?.sideConversations as conv}
+          {#each data?.sideConversations as { side_conversation: conv }}
             <tr>
               <td>{conv.created_at && formatYMD2(conv.created_at)}</td>
               <td>{conv.state}</td>

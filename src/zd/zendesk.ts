@@ -72,7 +72,11 @@ export async function getTicketArchive(
   /////////////////
   let ids = comments
     .map((c) => [c.author_id, ...(c.via.source.to.email_ccs || [])])
-    .concat(sideConversations.map((s) => s.participants.map((p) => p.user_id)))
+    .concat(
+      sideConversations.map((s) =>
+        s.side_conversation.participants.map((p) => p.user_id),
+      ),
+    )
     .flat()
     .filter((user, index, array) => array.indexOf(user) === index);
 
@@ -201,8 +205,8 @@ export async function getCommentsFromTicket(
 
 export async function getSideConversationsFromTicket(
   ticket: Ticket,
-): Promise<Array<SideConversation>> {
-  let sideConversations: Array<SideConversation> = [];
+): Promise<Array<SideConversationWithEvents>> {
+  let sideConvos: Array<SideConversation> = [];
 
   let r = await throttle(
     async () =>
@@ -213,10 +217,10 @@ export async function getSideConversationsFromTicket(
           username,
           password,
         },
-      }) as Promise<{ data: SideConverstationResponse }>,
+      }) as Promise<{ data: SideConversationResponse }>,
   )();
 
-  sideConversations.push(...r.data.side_conversations);
+  sideConvos.push(...r.data.side_conversations);
 
   while (r.data.next_page) {
     r = await throttle(async () =>
@@ -230,10 +234,27 @@ export async function getSideConversationsFromTicket(
       }),
     )();
 
-    sideConversations.push(...r.data.side_conversations);
+    sideConvos.push(...r.data.side_conversations);
   }
 
-  return sideConversations;
+  // Replace all the side conversation objects with on where `events` is side loaded expanded
+  return Promise.all(
+    sideConvos.map(async (sideConv) => {
+      let r = await throttle(
+        async () =>
+          axios({
+            method: 'get',
+            url: `${ZD_DOMAIN}/api/v2/tickets/${ticket.id}/side_conversations/${sideConv.id}?include=events`,
+            auth: {
+              username,
+              password,
+            },
+          }) as Promise<{ data: SideConversationWithEvents }>,
+      )();
+
+      return r.data;
+    }),
+  );
 }
 
 export async function getOrgs(
@@ -419,7 +440,7 @@ export interface TicketArchive {
   orgs: Record<number, Org>;
   groups: Record<number, Group>;
   ticketFields: Record<number, TicketField>;
-  sideConversations: Array<SideConversation>;
+  sideConversations: Array<SideConversationWithEvents>;
 }
 
 export interface Org {
@@ -604,11 +625,59 @@ export interface SideConversation {
   };
 }
 
-interface SideConverstationResponse {
+interface SideConversationResponse {
   side_conversations: Array<SideConversation>;
   next_page: string | null;
   previous_page: string | null;
   count: number;
+}
+
+export interface SideConversationWithEvents {
+  side_conversation: SideConversation;
+  events?: Array<{
+    id: string;
+    side_conversation_id: string;
+    actor: {
+      user_id: number;
+      name: string;
+      email: string;
+    };
+    type: string;
+    via: string;
+    created_at: string;
+    message: {
+      subject: string;
+      preview_text: string;
+      from: {
+        user_id: number;
+        name: string;
+        email: string;
+      };
+      to: Array<{
+        user_id: number;
+        name: string;
+        email: string;
+      }>;
+      body: string;
+      html_body: string;
+      external_ids: {
+        ticketAuditId: string;
+        outboundEmail?: string;
+      };
+      attachments: Array<{
+        id: string;
+        file_name: string;
+        size: number;
+        content_url: string;
+        content_type: string;
+        width: number;
+        height: number;
+        inline: boolean;
+      }>;
+      updates: {};
+      ticket_id: number;
+    };
+  }>;
 }
 
 export interface TicketField {

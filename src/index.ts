@@ -39,7 +39,7 @@ import {
   searchTickets,
   Ticket,
 } from './zd/zendesk.js';
-import { generatePdf } from './zd/pdf.js';
+import { generatePdf, generateSideConverstationPdf } from './zd/pdf.js';
 import { writeFileSync } from 'node:fs';
 // Stuff from config
 const { token, domain } = config.get('oada');
@@ -156,6 +156,14 @@ export async function handleTicket(
     }
 
     const pdf = await generatePdf(archive);
+
+    let i = 1;
+    for (let sideConv of archive.sideConversations) {
+      const pdf = await generateSideConverstationPdf(archive, sideConv);
+      info(`Writing output side PDF ${i}`);
+      writeFileSync(`./side-${i}.pdf`, pdf);
+      i++;
+    }
 
     // FIXME: Remove
     info('Writing output PDF');
