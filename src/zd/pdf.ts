@@ -21,7 +21,11 @@ import { createServer } from 'http';
 import { join, extname } from 'path';
 import { launch } from 'puppeteer';
 import debug from 'debug';
-import { TicketArchive } from './zendesk.js';
+import {
+  SideConversation,
+  SideConversationWithEvents,
+  TicketArchive,
+} from './zendesk.js';
 
 const info = debug('zendesk-sync:pdf:info');
 const warn = debug('zendesk-sync:pdf:warn');
@@ -51,7 +55,7 @@ const prepareFile = async (url: string) => {
     () => false,
   );
   const found = !pathTraversal && exists;
-  const streamPath = found ? filePath : STATIC_PATH + '/404.html';
+  const streamPath = found ? filePath : STATIC_PATH + '/index.html';
   const ext = extname(streamPath).substring(1).toLowerCase();
   const stream = createReadStream(streamPath);
   return { found, ext, stream };
@@ -62,7 +66,7 @@ let address = new Promise<string>((resolve, reject) => {
   const server = createServer(async (req, res) => {
     if (req.url) {
       const file = await prepareFile(req.url);
-      const statusCode = file.found ? 200 : 404;
+      const statusCode = 200; // We always fallback to index.html
       const mimeType = MIME_TYPES[file.ext] || MIME_TYPES.default;
       res.writeHead(statusCode, { 'Content-Type': mimeType });
       file.stream.pipe(res);
@@ -119,7 +123,64 @@ export async function generatePdf(archive: TicketArchive): Promise<Buffer> {
     }
   });
 
-  await page.goto(`http://${await address}`, {
+  await page.goto(`http://${await address}/ticket`, {
+    waitUntil: ['load', 'networkidle0'],
+  });
+
+  const pdf = await page.pdf({
+    format: 'letter',
+    margin: { top: '20px', left: '20px', right: '20px', bottom: '20px' },
+    printBackground: true,
+  });
+
+  await browser.close();
+
+  return pdf;
+}
+
+// TODO: Should we pass in sideConv, or just an index, or should this function just return an array of PDFs, or...
+export async function generateSideConverstationPdf(
+  archive: TicketArchive,
+  sideConv: SideConversationWithEvents,
+): Promise<Buffer> {
+  const browser = await launch({
+    headless: 'new',
+    args: [
+      '--disable-extensions',
+      '--no-sandbox',
+      '--disable-gpu',
+      '--disable-web-security',
+    ],
+    dumpio: true,
+  });
+
+  let page = (await browser.newPage())
+    .on('load', trace)
+    .on('error', error)
+    .on('console', (message) =>
+      info(`${message.type().substring(0, 3).toUpperCase()} ${message.text()}`),
+    )
+    .on('pageerror', error)
+    .on('requestfailed', (request) =>
+      warn(`${request.failure()?.errorText} ${request.url()}`),
+    );
+
+  await page.setRequestInterception(true);
+
+  page.on('request', (request) => {
+    if (request.url() === 'http://127.0.0.1/_data') {
+      console.log(sideConv);
+      request.respond({
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': '' },
+        body: JSON.stringify({ ticket: archive, ...sideConv }),
+      });
+    } else {
+      request.continue();
+    }
+  });
+
+  await page.goto(`http://${await address}/side`, {
     waitUntil: ['load', 'networkidle0'],
   });
 
