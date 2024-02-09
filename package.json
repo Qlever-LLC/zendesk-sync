@@ -60,7 +60,7 @@
     "@oada/lib-prom": "^3.8.0",
     "@oada/pino-debug": "^3.9.1",
     "@oada/types": "^3.5.2",
-    "axios": "^1.4.0",
+    "axios": "^1.6.0",
     "clone-deep": "^4.0.1",
     "cron": "^2.3.1",
     "debug": "^4.3.4",
