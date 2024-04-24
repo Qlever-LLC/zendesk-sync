@@ -12,35 +12,37 @@
  * distributed under the License is distributed on an 'AS IS' BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.
+ o * limitations under the License.
  */
-
-// Import this first to setup the environment
-import { config } from './config.js';
 
 // Import this _before_ pino and/or DEBUG
 import '@oada/pino-debug';
 
-import { connect, doJob, type OADAClient, type JsonObject } from '@oada/client';
+import Debug from 'debug';
+
+// Import this first to setup the environment
+import { config } from './config.js';
+
+import { connect, type OADAClient, type JsonObject } from '@oada/client';
+import { doJob } from '@oada/client/jobs';
 import axios from 'axios';
 import { CronJob } from 'cron';
 import cloneDeep from 'clone-deep';
-import debug from 'debug';
 import esMain from 'es-main';
 import md5 from 'md5';
 import PQueue from 'p-queue';
 import { tpDocTypesTree } from './tree.js';
 import {
   EnsureResult,
+  doCredentialedApiRequest,
+  getCustomerOrgId,
   getOrgs,
   getTicket,
   getTicketArchive,
-  SAP_FIELD,
   searchTickets,
-  Ticket,
 } from './zd/zendesk.js';
-import { generatePdf, generateSideConverstationPdf } from './zd/pdf.js';
-import { writeFileSync } from 'node:fs';
+import { generateTicketPdf } from './zd/pdf.js';
+import { Ticket, SAP_FIELD, notUndefined } from './types.js';
 // Stuff from config
 const { token, domain } = config.get('oada');
 const {
@@ -55,10 +57,11 @@ const concurrency = config.get('concurrency');
 const JOB_TIMEOUT = config.get('timeout');
 const POLL_RATE = config.get('poll-rate');
 
-const info = debug('zendesk-sync:info');
-const warn = debug('zendesk-sync:warn');
-const trace = debug('zendesk-sync:trace');
-const error = debug('zendesk-sync:error');
+const info = Debug('zendesk-sync:info');
+const warn = Debug('zendesk-sync:warn');
+const debug = Debug('zendesk-sync:info');
+const error = Debug('zendesk-sync:error');
+const fatal = Debug('zendesk-sync:fatal');
 
 // TODO: Temporary: remove after running closed jobs
 const workQueue = new Map<number, number>();
@@ -69,14 +72,14 @@ tpDocTypesTree['resources'] = cloneDeep(
 );
 
 export async function run() {
-  //////////////  const oada = await connect({ token, domain });
-  const oada = {};
+  const oada = await connect({ token, domain });
+  // FIXME: Uncomment
   // cleanup = watchZendesk(async (ticket: Ticket) => {
   //   work.add(async () => handleTicket(ticket, oada as OADAClient));
   // });
   info('Starting up...');
   try {
-    handleTicket(await getTicket(72), oada as OADAClient);
+    handleTicket(await getTicket(2395), oada as OADAClient);
   } catch (e) {
     error(e);
   }
@@ -87,50 +90,54 @@ export async function run() {
  * organization has an SAP ID assigned. Called on a regular interval.
  **/
 export async function pollZd(): Promise<Array<Ticket>> {
-  const tickets = await searchTickets('solved');
+  let candidates = await searchTickets('solved');
+  debug(`Found ${candidates.length} candidate tickets`);
 
-  if (tickets.length > 0)
-    trace(`Got tickets: ${tickets.map((t) => t.id).join(',')}`);
-
-  // Now get the set of tickets with an organization
-  let tixWithOrgs = tickets.filter(
-    (t) =>
-      t?.custom_fields.some((cf) => cf.id === ORG_FIELD_ID && cf.value) ||
-      t.organization_id,
+  // Get all unique Orgs covering all candidate tickets
+  let orgs = await getOrgs(
+    Array.from(
+      new Set(candidates.map((t) => getCustomerOrgId(t)).filter(notUndefined)),
+    ),
   );
 
-  const picked = tixWithOrgs.map(
-    (t) =>
-      (t?.custom_fields.find((cf) => cf.id === ORG_FIELD_ID)?.value ??
-        t.organization_id) as unknown as number,
-  );
+  // Process tickets assigned to customer org with SAP ID or old tickets
+  return candidates.filter((t) => {
+    let custId = getCustomerOrgId(t);
+    if (!custId) {
+      debug({ ticket_id: t.id }, 'Missing customer organization.');
+      return false;
+    }
 
-  // Get all mentioned organizations
-  const orgs = await getOrgs(
-    Array.from(new Set(tixWithOrgs.map((t) => t.organization_id))),
-  );
+    let org = orgs[custId];
+    if (!org) {
+      fatal({ ticket: t.id }, `Can't find org ${custId} afer fetching it?`);
+      return false;
+    }
 
-  tixWithOrgs = tixWithOrgs.map((t) => ({
-    ...t,
-    organization:
-      orgs[
-      (t?.custom_fields?.[ORG_FIELD_ID] ??
-        t.organization_id) as unknown as string
-      ],
-  }));
+    // If assigned organization has an SAPID, then archive it.
+    if (SAP_FIELD in org.organization_fields) {
+      return true;
+    }
 
-  // Return only those with an SAP_FIELD value
-  return tixWithOrgs.filter(
-    (t, i) =>
-      // falseys are already filtered out
-      orgs[picked[i]!]?.organization_fields[SAP_FIELD] ||
-      // Close after 27 days without SAP ID. Otherwise, Zendesk will close it themselves and
-      // it won't show up under this query for solved tickets.
+    // If a solved ticket without an assigned customer, or the assigned customer does not have an SAPID,
+    // AND it is over 27 days post solving, then archive it with the default customer.
+    // This is to avoid Zendesk auto closing the ticket which drops it out of the polling results.
+    if (
       (Date.now() - (new Date(t.updated_at) as unknown as number)) /
       24 /
       3_600_000 >
-      27.0,
-  );
+      27.0 // FIXME: Should this be a config option?
+    ) {
+      warn(
+        { ticket_id: t.id },
+        `Archiving without proper customer because of age!`,
+      );
+      return true;
+    }
+
+    // Ticket not ready. Solved, but assigned org needs an SAPID
+    return false;
+  });
 }
 
 /**
@@ -143,42 +150,19 @@ export async function handleTicket(
   oada: OADAClient,
 ): Promise<void | string> {
   try {
-    // FIXME: Remove
-    console.log(oada);
-    info(
-      `Processing Ticket [id:${ticket.id}] [size: ${work.size}] [pending: ${work.pending}]`,
-    );
+    info({ ticket_id: ticket.id }, `Start processing`);
+
     workQueue.set(ticket.id, Date.now());
     const archive = await getTicketArchive(ticket);
-    if (archive.org === null) {
-      error('A ticket without an organization is being archived?', archive);
-      throw new Error('Ticket must have an organization to archive.');
-    }
+    const ticketPdf = await generateTicketPdf(archive);
 
-    const pdf = await generatePdf(archive);
-
-    let i = 1;
-    for (let sideConv of archive.sideConversations) {
-      const pdf = await generateSideConverstationPdf(archive, sideConv);
-      info(`Writing output side PDF ${i}`);
-      writeFileSync(`./side-${i}.pdf`, pdf);
-      i++;
-    }
-
-    // FIXME: Remove
-    info('Writing output PDF');
-    writeFileSync('./output.pdf', pdf);
-    info('Goodbye');
-    process.exit();
-
-    // FIXME: un-comment
-    /*
     const sapids = archive.org?.organization_fields?.[SAP_FIELD]
       ? archive.org?.organization_fields?.[SAP_FIELD].split(',').map(
         (id) => `sap:${id}`,
       )
       : [];
     const zid = `zendesk:${archive.org.id}`;
+
     const { result } = (await doJob(oada, {
       service: 'trellis-data-manager',
       type: 'trading-partners-ensure',
@@ -194,10 +178,14 @@ export async function handleTicket(
       tp = result.matches![0].item;
       if (!tp) {
         error(
-          `Failed to find single trading-partner for ticket ${ticket.id} organization ${archive.org.name}`,
+          `Failed to find single trading - partner for ticket ${ticket.id} organization ${archive.org.name} `,
         );
       }
     }
+
+    debug({ tp }, 'Trading partner lookup finished.');
+
+    // Upsert a Trellis TP to hold this ticket
     if (
       sapids.some((sapid) => !tp.externalIds.includes(sapid)) ||
       tp.name !== archive.org.name
@@ -213,17 +201,25 @@ export async function handleTicket(
           },
         },
       });
+
+      debug({}, 'Trading partner upsert finished.');
     }
 
+    debug({}, 'Creating ticket resource');
+
     // sync the pdf to Trellis
-    const trellisname = `${ticket.id}-${md5(JSON.stringify(archive))}`;
+    const pdfid = md5(JSON.stringify(archive));
+    const trellisname = `${ticket.id}-${pdfid}`;
     const { headers } = await oada.post({
       path: `/resources`,
-      data: ticket as unknown as JsonObject,
+      data: archive as unknown as JsonObject,
       contentType: 'application/vnd.zendesk.ticket.1+json',
     });
     const _id = headers['content-location']!.replace(/^\//, '');
 
+    debug({ _id }, 'Created ticket resource');
+
+    // Mark resource is shared to customer. Make's LF show as "shared from"
     await oada.put({
       path: `/${_id}/_meta`,
       data: {
@@ -231,37 +227,54 @@ export async function handleTicket(
       },
     });
 
-    let pdfid = md5(archive.toString());
+    debug({}, 'Putting ticket pdf');
     await oada.put({
       path: `/${_id}/_meta/vdoc/pdf/${pdfid}`,
-      data: pdf,
+      data: ticketPdf,
       headers: { 'x-oada-ensure-link': 'unversioned' },
       contentType: 'application/pdf',
     });
+    debug({}, 'Putting ticket pdf filename');
     await oada.put({
       path: `/${_id}/_meta/vdoc/pdf/${pdfid}/_meta`,
-      data: { filename: `Ticket${trellisname}_Ticket.pdf` },
+      data: { filename: `Ticket-${ticket.id}.pdf` },
     });
 
+    // Main ticket attachments
     for await (const attach of Object.values(archive.attachments)) {
-      const buff = (
-        (await axios({
-          method: 'get',
-          url: attach.content_url,
-          responseType: 'arraybuffer',
-        })) as unknown as { data: string }
-      ).data;
-      pdfid = md5(buff.toString() + ' ;');
+      debug({}, 'Putting attachment');
+      const buff = await doCredentialedApiRequest(attach.content_url);
+      const hash = md5(buff.toString());
       await oada.put({
-        path: `/${_id}/_meta/vdoc/pdf/${pdfid}`,
-        data: Buffer.from(buff, 'utf-8'),
+        path: `/${_id}/_meta/vdoc/pdf/${hash}`,
+        data: buff,
         headers: { 'x-oada-ensure-link': 'unversioned' },
         contentType: attach.content_type,
       });
       await oada.put({
-        path: `/${_id}/_meta/vdoc/pdf/${pdfid}/_meta`,
+        path: `/${_id}/_meta/vdoc/pdf/${hash}/_meta`,
         data: { filename: attach.file_name },
       });
+    }
+
+    // Side ticket attachments
+    for (const sideConvoArchive of archive.sideConversations) {
+      debug({}, `Processing side conversation`);
+      for await (const attach of Object.values(sideConvoArchive.attachments)) {
+        debug({}, 'Putting attachment');
+        const buff = await doCredentialedApiRequest(attach.content_url);
+        const hash = md5(buff.toString());
+        await oada.put({
+          path: `/${_id}/_meta/vdoc/pdf/${hash}`,
+          data: buff,
+          headers: { 'x-oada-ensure-link': 'unversioned' },
+          contentType: attach.content_type,
+        });
+        await oada.put({
+          path: `/${_id}/_meta/vdoc/pdf/${hash}/_meta`,
+          data: { filename: attach.file_name },
+        });
+      }
     }
 
     await oada.put({
@@ -275,7 +288,7 @@ export async function handleTicket(
       tree: tpDocTypesTree,
     });
 
-    // Mark the ticket closed
+    /*
     await axios({
       method: 'put',
       url: `${ZD_DOMAIN}/api/v2/tickets/${ticket.id}.json`,
@@ -291,11 +304,11 @@ export async function handleTicket(
     });
     */
 
+    debug(`Marked sync operation for ticket [${ticket.id}] as finished.`);
     if (cleanup) {
-      trace(`Marked sync operation for ticket [${ticket.id}] as finished.`);
+      debug(`Marked sync operation for ticket [${ticket.id}] as finished.`);
       cleanup(ticket.id);
     }
-    //return `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}`;
   } catch (err) {
     error(err);
   }
@@ -320,7 +333,7 @@ export function watchZendesk(
       }
     }
 
-    trace(`${start.toISOString()} Polling Zendesk.`);
+    info(`${start.toISOString()} Polling Zendesk.`);
 
     // Queue additional items
     let tickets = await pollZd();
@@ -331,7 +344,7 @@ export function watchZendesk(
         `Adding tickets to work queue: ${tickets.map((t) => t.id).join(', ')}`,
       );
     for await (const ticket of tickets) {
-      trace(`Adding ticket ${ticket.id} to work queue.`);
+      debug(`Adding ticket ${ticket.id} to work queue.`);
       workQueue.set(ticket.id, 0);
       // Do task
       task(ticket);
@@ -348,6 +361,6 @@ export function watchZendesk(
 }
 
 if (esMain(import.meta)) {
-  trace('esMain determined to run the service');
+  debug('esMain determined to run the service');
   await run();
 }

@@ -117,7 +117,7 @@ export const tpDocTypesTree: Tree = {
                 // eslint-disable-next-line no-secrets/no-secrets
                 '_type': 'application/vnd.oada.trellisfw.documentType.1+json',
                 '*': {
-                  _type: 'application/vnd.oada.trellisfw.documents.1+json',
+                  '_type': 'application/vnd.oada.trellisfw.documents.1+json',
                   '*': {
                     _type: 'application/vnd.oada.trellisfw.documents.1+json',
                     _meta: {
@@ -125,14 +125,14 @@ export const tpDocTypesTree: Tree = {
                         pdf: {
                           '*': {
                             _type: 'application/pdf',
-                          }
-                        }
-                      }
-                    }
+                          },
+                        },
+                      },
+                    },
                   },
                 },
                 'tickets': {
-                  _type: 'application/vnd.oada.trellisfw.documents.1+json',
+                  '_type': 'application/vnd.oada.trellisfw.documents.1+json',
                   '*': {
                     _type: 'application/vnd.oada.trellisfw.documents.1+json',
                     _meta: {
@@ -140,10 +140,10 @@ export const tpDocTypesTree: Tree = {
                         pdf: {
                           '*': {
                             _type: 'application/pdf',
-                          }
-                        }
-                      }
-                    }
+                          },
+                        },
+                      },
+                    },
                   },
                 },
               },
