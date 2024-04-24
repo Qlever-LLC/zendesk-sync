@@ -18,7 +18,7 @@
 import libConfig from '@oada/lib-config';
 
 export const { config } = await libConfig({
-  oada: {
+  'oada': {
     domain: {
       doc: 'OADA API domain',
       format: String,
@@ -34,7 +34,7 @@ export const { config } = await libConfig({
       arg: 'token',
     },
   },
-  zendesk: {
+  'zendesk': {
     delay: {
       doc: 'Zendesk delay for writes to take effect',
       format: Number,
@@ -64,21 +64,37 @@ export const { config } = await libConfig({
       arg: 'zd_pass',
     },
     api_limit: {
-      doc: 'Zendesk API per minute rate limit',
+      doc: 'Zendesk API per interval rate limit',
       format: Number,
       default: 700,
       env: 'ZD_API_LIMIT',
       arg: 'zd_api_limit',
     },
+    api_limit_interval: {
+      doc: 'Zendesk API limit interval',
+      format: Number,
+      default: 60 * 1000, // 1 minute
+      env: 'ZD_API_LIMIT_INTERVAL',
+      arg: 'zd_api_limit_interval',
+    },
+    // FIXME: NEED ?
     org_field_id: {
       doc: 'Zendesk field ID for cataloged organziation',
-      default: 17666136440077, //TODO: This value is for the sandbox. Get the id for prod
+      default: 21727554026381,
       format: Number,
       env: 'ZD_ORG_FIELD_ID',
       arg: 'zd_org_field_id',
     },
+    // FIXME: NEED ?
+    default_org_id: {
+      doc: 'Zendesk Organziation ID to use when no organziation was cataloged',
+      default: 23331110657933,
+      format: Number,
+      env: 'ZD_DEFAULT_ORG_ID',
+      arg: 'zd_default_org_id',
+    },
   },
-  concurrency: {
+  'concurrency': {
     doc: 'Concurrency limit for processing tickets',
     format: Number,
     default: 5,
@@ -92,14 +108,14 @@ export const { config } = await libConfig({
     env: 'POLL_RATE',
     arg: 'poll-rate',
   },
-  timeout: {
+  'timeout': {
     doc: 'Time limit for processing a ticket',
     format: Number,
     default: 100_000,
     env: 'JOB_TIMEOUT',
     arg: 'job_timeout',
   },
-  testing: {
+  'testing': {
     email1: {
       name: {
         doc: 'Name used by email1 in tests',
@@ -132,7 +148,5 @@ export const { config } = await libConfig({
         arg: 'e2_address',
       },
     },
-
-  }
-
+  },
 });

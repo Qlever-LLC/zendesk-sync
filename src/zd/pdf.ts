@@ -21,11 +21,8 @@ import { createServer } from 'http';
 import { join, extname } from 'path';
 import { launch } from 'puppeteer';
 import debug from 'debug';
-import {
-  SideConversation,
-  SideConversationWithEvents,
-  TicketArchive,
-} from './zendesk.js';
+import { TicketArchive } from '../types.js';
+import { doCredentialedApiRequest } from './zendesk.js';
 
 const info = debug('zendesk-sync:pdf:info');
 const warn = debug('zendesk-sync:pdf:warn');
@@ -42,8 +39,13 @@ const MIME_TYPES: Record<string, string> = {
   json: 'application/json',
 };
 
-// FIXME: How to connect to template build?
 const STATIC_PATH = join(process.cwd(), './dist-template');
+const ZD_ATTACHMENT =
+  /https:\/\/.+zendesk.com\/collaboration\/graphql\/attachments\/.*/;
+const ZD_SIDE_ATTACHMENT =
+  /https:\/\/.+zendesk.com\/api\/v2\/tickets\/.*\/side_conversations\/.*/;
+const ZD_THREAD_ATTACHMENT =
+  /https:\/\/.+zendesk.com\/collaboration\/graphql\/threads\/.*/;
 
 const prepareFile = async (url: string) => {
   const paths = [STATIC_PATH, url];
@@ -61,7 +63,7 @@ const prepareFile = async (url: string) => {
   return { found, ext, stream };
 };
 
-// Don't do anything PDF processing until after the HTTP server is ready
+// Don't process PDFs until _after_ the HTTP server is up and ready
 let address = new Promise<string>((resolve, reject) => {
   const server = createServer(async (req, res) => {
     if (req.url) {
@@ -86,9 +88,12 @@ let address = new Promise<string>((resolve, reject) => {
   });
 });
 
-export async function generatePdf(archive: TicketArchive): Promise<Buffer> {
+// Lauch embedded Chrome, load template, serve archive JSON, save result as ticket PDF
+export async function generateTicketPdf(
+  archive: TicketArchive,
+): Promise<Buffer> {
   const browser = await launch({
-    headless: 'new',
+    headless: true,
     args: [
       '--disable-extensions',
       '--no-sandbox',
@@ -100,87 +105,60 @@ export async function generatePdf(archive: TicketArchive): Promise<Buffer> {
 
   let page = (await browser.newPage())
     .on('load', trace)
-    .on('error', error)
-    .on('console', (message) =>
-      info(`${message.type().substring(0, 3).toUpperCase()} ${message.text()}`),
+    .on('error', (e) => error({ stack: e.stack }, `[${e.name}] ${e.message}.`))
+    .on('console', (message) => {
+      const type = message.type().substring(0, 3).toLowerCase();
+
+      switch (type) {
+        case 'err':
+          error({ location: message.location() }, message.text());
+          break;
+
+        case 'warn':
+          warn({}, message.text());
+          break;
+
+        default:
+          info({}, message.text());
+          break;
+      }
+    })
+    .on('pageerror', (e) =>
+      error({ stack: e.stack }, `[${e.name}] ${e.message}.`),
     )
-    .on('pageerror', error)
     .on('requestfailed', (request) =>
       warn(`${request.failure()?.errorText} ${request.url()}`),
     );
 
   await page.setRequestInterception(true);
 
-  page.on('request', (request) => {
+  page.on('request', async (request) => {
     if (request.url() === 'http://127.0.0.1/_data') {
+      // Inject the ticket archive into the browser
       request.respond({
         contentType: 'application/json',
         headers: { 'Access-Control-Allow-Origin': '' },
         body: JSON.stringify(archive),
       });
-    } else {
-      request.continue();
-    }
-  });
 
-  await page.goto(`http://${await address}/ticket`, {
-    waitUntil: ['load', 'networkidle0'],
-  });
-
-  const pdf = await page.pdf({
-    format: 'letter',
-    margin: { top: '20px', left: '20px', right: '20px', bottom: '20px' },
-    printBackground: true,
-  });
-
-  await browser.close();
-
-  return pdf;
-}
-
-// TODO: Should we pass in sideConv, or just an index, or should this function just return an array of PDFs, or...
-export async function generateSideConverstationPdf(
-  archive: TicketArchive,
-  sideConv: SideConversationWithEvents,
-): Promise<Buffer> {
-  const browser = await launch({
-    headless: 'new',
-    args: [
-      '--disable-extensions',
-      '--no-sandbox',
-      '--disable-gpu',
-      '--disable-web-security',
-    ],
-    dumpio: true,
-  });
-
-  let page = (await browser.newPage())
-    .on('load', trace)
-    .on('error', error)
-    .on('console', (message) =>
-      info(`${message.type().substring(0, 3).toUpperCase()} ${message.text()}`),
-    )
-    .on('pageerror', error)
-    .on('requestfailed', (request) =>
-      warn(`${request.failure()?.errorText} ${request.url()}`),
-    );
-
-  await page.setRequestInterception(true);
-
-  page.on('request', (request) => {
-    if (request.url() === 'http://127.0.0.1/_data') {
-      console.log(sideConv);
+      // Proxy Zendesk attachments through an authenticated API
+    } else if (
+      ZD_ATTACHMENT.test(request.url()) ||
+      ZD_SIDE_ATTACHMENT.test(request.url()) ||
+      ZD_THREAD_ATTACHMENT.test(request.url())
+    ) {
+      // Proxy the buffer
       request.respond({
-        contentType: 'application/json',
         headers: { 'Access-Control-Allow-Origin': '' },
-        body: JSON.stringify({ ticket: archive, ...sideConv }),
+        body: await doCredentialedApiRequest(request.url()),
       });
     } else {
+      // Some other fetch, which we let continue as normal
       request.continue();
     }
   });
 
-  await page.goto(`http://${await address}/side`, {
+  await page.goto(`http://${await address}/`, {
     waitUntil: ['load', 'networkidle0'],
   });
 

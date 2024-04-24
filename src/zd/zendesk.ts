@@ -1,112 +1,48 @@
-import axios from 'axios';
+import Debug from 'debug';
+import Axios from 'axios';
+import { buildMemoryStorage, setupCache } from 'axios-cache-interceptor';
 import pThrottle from 'p-throttle';
 
 import { config } from '../config.js';
+import {
+  Comment,
+  Group,
+  Org,
+  SideConversation,
+  SideConversationEvent,
+  Ticket,
+  Field,
+  User,
+  TicketArchive,
+  SideConversationArchive,
+  SideConversationAttachment,
+  Attachment,
+} from '../types.js';
 const {
   username,
   password,
   domain: ZD_DOMAIN,
   api_limit: API_LIMIT,
+  api_limit_interval: API_LIMIT_INTERVAL,
   org_field_id: ORG_FIELD_ID,
+  default_org_id: DEFAULT_ORG_ID,
 } = config.get('zendesk');
+
+const debug = Debug('zendesk-sync:zendesk:debug');
 
 const throttle = pThrottle({
   limit: API_LIMIT,
-  interval: 60 * 1000, // 1 minute
+  interval: API_LIMIT_INTERVAL,
   strict: true,
 });
 
-export async function getTicket(ticket: number | Ticket): Promise<Ticket> {
-  let id = typeof ticket === 'number' ? ticket : ticket.id;
-
-  let r = await throttle(
-    async () =>
-      axios({
-        method: 'get',
-        url: `${ZD_DOMAIN}/api/v2/tickets/${id}?include=dates,ticket_forms`,
-        auth: {
-          username,
-          password,
-        },
-      }) as unknown as { data: { ticket: Ticket } },
-  )();
-
-  return r.data.ticket;
-}
-
-export async function getTicketArchive(
-  tix: number | Ticket,
-): Promise<TicketArchive> {
-  // Fetch even if we have ticket JSON to include the "?included=" fields
-  const ticket = await getTicket(tix);
-  const orgs = await getOrgsFromTicket(ticket);
-
-  // check for customer org
-  const orgId =
-    ticket.custom_fields.find((f) => f.id === ORG_FIELD_ID && f.value !== null)
-      ?.id ??
-    ticket.organization_id ??
-    null;
-
-  let org = (orgId && orgs[orgId]) || null;
-
-  ////////////////////
-  // Fetch comments //
-  ///////////////////
-  const comments = await getCommentsFromTicket(ticket);
-
-  const attachments = indexById(
-    comments
-      .map((c) => c.attachments)
-      .flat()
-      .filter((user, index, array) => array.indexOf(user) === index),
-  );
-
-  //////////////////////////////
-  // Fetch side conversations //
-  //////////////////////////////
-  let sideConversations = await getSideConversationsFromTicket(ticket);
-
-  /////////////////
-  // Fetch users //
-  /////////////////
-  let ids = comments
-    .map((c) => [c.author_id, ...(c.via.source.to.email_ccs || [])])
-    .concat(
-      sideConversations.map((s) =>
-        s.side_conversation.participants.map((p) => p.user_id),
-      ),
-    )
-    .flat()
-    .filter((user, index, array) => array.indexOf(user) === index);
-
-  const users = await getUsers(ids);
-
-  //////////////////
-  // Fetch groups //
-  //////////////////
-  let groups = await getGroups();
-
-  //////////////////
-  // Fetch fields //
-  //////////////////
-  let ticketFields = await getTicketFields();
-
-  return {
-    ticket,
-    comments,
-    attachments,
-    org,
-    users,
-    orgs,
-    groups,
-    ticketFields,
-    sideConversations,
-  };
-}
+const axiosInstance = Axios.create();
+const axios = setupCache(axiosInstance, {
+  storage: buildMemoryStorage(true, 20 * 1000, 5000),
+});
 
 export async function searchTickets(status: string): Promise<Array<Ticket>> {
-  let tickets: Array<Ticket> = [];
+  debug(`Searching for tickets with status: ${status}`);
 
   let r = await throttle(
     async () =>
@@ -124,7 +60,7 @@ export async function searchTickets(status: string): Promise<Array<Ticket>> {
       }) as Promise<{ data: SearchResponse }>,
   )();
 
-  tickets.push(...r.data.results);
+  let tickets = r.data.results;
 
   while (r.data.next_page) {
     r = await throttle(async () =>
@@ -144,32 +80,132 @@ export async function searchTickets(status: string): Promise<Array<Ticket>> {
   return tickets;
 }
 
-export async function getOrgsFromTicket(
+// Returns a ticket archive including the ticket JSON, metadata, and assoicated binary resources
+export async function getTicketArchive({ id }: Ticket): Promise<TicketArchive> {
+  // Fetch the ticket JSON
+  const ticket = await getTicket(id);
+
+  // Fetch orgs assoicated with ticke
+  const orgs = await getTicketOrgs(ticket);
+
+  // Fetch the customer org
+  const custOrgId = getCustomerOrgId(ticket);
+  let org = (custOrgId && orgs[custOrgId]) || (await getOrg(DEFAULT_ORG_ID));
+
+  // Fetch ticket comments
+  const comments = await getTicketComments(ticket);
+
+  // Fetch users
+  const users = await getUsers(
+    comments
+      .map((c) => [
+        c.author_id,
+        ...('email_ccs' in c.via.source.to ? c.via.source.to.email_ccs : []),
+      ])
+      .flat()
+      .filter((user, index, array) => array.indexOf(user) === index),
+  );
+
+  // Fetch groups
+  let groups = await getGroups();
+
+  // Fetch ticket fields
+  let fields = await getFields();
+
+  // Collect all ticket attachments
+  let attachments = indexById(
+    comments
+      .map((c) => c.attachments)
+      .flat()
+      .filter((user, index, array) => array.indexOf(user) === index),
+  );
+
+  // Fetch attachment binary
+  let sideConversations = await Promise.all(
+    (await getSideConversations(ticket)).map((convo) =>
+      getSideConversationArchive(convo),
+    ),
+  );
+
+  return {
+    ticket,
+    comments,
+    attachments,
+    org,
+    users,
+    orgs,
+    groups,
+    fields,
+    sideConversations,
+  };
+}
+
+export async function getAttachmentBuffer(attach: Attachment): Promise<Buffer> {
+  debug(`Fetching attachment ${attach.id}`);
+  const buf = (await axios({
+    method: 'get',
+    url: attach.content_url,
+    responseType: 'arraybuffer',
+  })) as unknown as { data: string };
+
+  return Buffer.from(buf.data, 'utf-8');
+}
+
+export async function doCredentialedApiRequest(url: string): Promise<Buffer> {
+  debug({}, `Making credentialed API request to ${url}`);
+  const buf = (await axios({
+    method: 'get',
+    url,
+    responseType: 'arraybuffer',
+    auth: {
+      username,
+      password,
+    },
+  })) as unknown as { data: string };
+
+  return Buffer.from(buf.data, 'utf-8');
+}
+
+// Fetch a ticket by ID from Zendesk API
+export async function getTicket(id: number | string): Promise<Ticket> {
+  debug({ ticket_id: id }, `[Ticket ${id}] Fetching.`);
+
+  let r = await throttle(
+    async () =>
+      axios({
+        method: 'get',
+        url: `${ZD_DOMAIN}/api/v2/tickets/${id}?include=dates,ticket_forms`,
+        auth: {
+          username,
+          password,
+        },
+      }) as unknown as { data: { ticket: Ticket } },
+  )();
+
+  return r.data.ticket;
+}
+
+export async function getTicketOrgs(
   ticket: Ticket,
 ): Promise<Record<string, Org>> {
-  let ids = [];
+  debug(`[Ticket ${ticket.id}] Fetching organizations`);
+
+  let ids: Array<number> = [];
 
   // check for ticket org
   if (ticket.organization_id) {
     ids.push(ticket.organization_id);
   }
 
-  // check for customer org
-  const f = ticket.custom_fields.find(
-    (f) => f.id === ORG_FIELD_ID && f.value !== null,
-  );
-
-  if (f) {
-    ids.push(f.id);
-  }
+  ids.push(getCustomerOrgId(ticket) ?? DEFAULT_ORG_ID);
 
   return getOrgs(ids);
 }
 
-export async function getCommentsFromTicket(
+export async function getTicketComments(
   ticket: Ticket,
 ): Promise<Array<Comment>> {
-  let comments: Array<Comment> = [];
+  debug(`[Ticket ${ticket.id}] Fetching comments`);
 
   let r = await throttle(
     async () =>
@@ -183,7 +219,7 @@ export async function getCommentsFromTicket(
       }) as Promise<{ data: CommentsResponse }>,
   )();
 
-  comments.push(...r.data.comments);
+  let comments = r.data.comments;
 
   while (r.data.next_page) {
     r = await throttle(async () =>
@@ -203,10 +239,11 @@ export async function getCommentsFromTicket(
   return comments;
 }
 
-export async function getSideConversationsFromTicket(
+// Returns an array of all side conversations assoicated with a ticket id
+export async function getSideConversations(
   ticket: Ticket,
-): Promise<Array<SideConversationWithEvents>> {
-  let sideConvos: Array<SideConversation> = [];
+): Promise<Array<SideConversation>> {
+  debug(`[Ticket ${ticket.id}] Fetching side conversations.`);
 
   let r = await throttle(
     async () =>
@@ -217,10 +254,10 @@ export async function getSideConversationsFromTicket(
           username,
           password,
         },
-      }) as Promise<{ data: SideConversationResponse }>,
+      }) as Promise<{ data: SideConversationsResponse }>,
   )();
 
-  sideConvos.push(...r.data.side_conversations);
+  let sideConvos = r.data.side_conversations;
 
   while (r.data.next_page) {
     r = await throttle(async () =>
@@ -237,37 +274,94 @@ export async function getSideConversationsFromTicket(
     sideConvos.push(...r.data.side_conversations);
   }
 
-  // Replace all the side conversation objects with on where `events` is side loaded expanded
-  return Promise.all(
-    sideConvos.map(async (sideConv) => {
-      let r = await throttle(
-        async () =>
-          axios({
-            method: 'get',
-            url: `${ZD_DOMAIN}/api/v2/tickets/${ticket.id}/side_conversations/${sideConv.id}?include=events`,
-            auth: {
-              username,
-              password,
-            },
-          }) as Promise<{ data: SideConversationWithEvents }>,
-      )();
-
-      return r.data;
-    }),
-  );
+  return sideConvos;
 }
 
+export async function getSideConversationArchive(
+  sideConvo: SideConversation,
+): Promise<SideConversationArchive> {
+  // Fetch events
+  let events = await getSideConversationEvents(sideConvo);
+
+  // Collect all ticket attachments
+  let attachments = indexById(
+    events
+      .map((e) => e.message?.attachments)
+      .filter((e): e is SideConversationAttachment[] => !!e)
+      .flat()
+      .filter((user, index, array) => array.indexOf(user) === index),
+  );
+
+  debug(
+    `[Ticket ${sideConvo.ticket_id}] Fetching side conversation attachments.`,
+  );
+
+  // Fetch users
+  let users = await getUsers(sideConvo.participants.map((p) => p.user_id));
+
+  let archive: SideConversationArchive = {
+    sideConversation: sideConvo,
+    events,
+    attachments,
+    users,
+  };
+
+  return archive;
+}
+
+// Fetch the events of a side conversation from Zendesk
+export async function getSideConversationEvents(
+  sideConvo: SideConversation,
+): Promise<Array<SideConversationEvent>> {
+  debug(
+    `[Ticket ${sideConvo.ticket_id}] Fetching side conversations ${sideConvo.id} events`,
+  );
+
+  // Fetch side converstation events
+  let r = await throttle(
+    async () =>
+      axios({
+        method: 'get',
+        url: `${ZD_DOMAIN}/api/v2/tickets/${sideConvo.ticket_id}/side_conversations/${sideConvo.id}/events`,
+        auth: {
+          username,
+          password,
+        },
+      }) as Promise<{ data: SideConversationEventsResponse }>,
+  )();
+
+  let events = r.data.events;
+
+  while (r.data.next_page) {
+    r = await throttle(async () =>
+      axios({
+        method: 'get',
+        url: r.data.next_page as unknown as string,
+        auth: {
+          username,
+          password,
+        },
+      }),
+    )();
+
+    events.push(...r.data.events);
+  }
+
+  return events;
+}
+
+// Bulk fetch a set of Orgs from ZD
 export async function getOrgs(
-  orgs: Array<number | null>,
-): Promise<Record<string, Org>> {
-  if (!orgs.length) {
+  ids: Array<number>,
+): Promise<Record<number, Org>> {
+  if (!ids.length) {
     return {};
   }
 
-  let organizations: Array<Org> = [];
+  debug(`Fetching orgs: ${ids.join(',')}.`);
 
   let r = await throttle(
-    () =>
+    async () =>
       axios({
         method: 'get',
         url: `${ZD_DOMAIN}/api/v2/organizations/show_many.json`,
@@ -276,12 +370,12 @@ export async function getOrgs(
           password,
         },
         params: {
-          ids: orgs.join(','),
+          ids: ids.join(','),
         },
       }) as unknown as { data: OrgManyResponse },
   )();
 
-  organizations.push(...r.data.organizations);
+  let organizations = r.data.organizations;
 
   while (r.data.next_page) {
     r = await throttle(async () =>
@@ -301,17 +395,29 @@ export async function getOrgs(
   return indexById(organizations);
 }
 
+// Use bulk getOrgs to fetch a single org
+export async function getOrg(orgId: number): Promise<Org> {
+  const org = (await getOrgs([orgId]))[orgId];
+
+  if (!org) {
+    throw Error(`Org ${orgId} does not exist?`);
+  }
+
+  return org;
+}
+
+// Bulk fetch users from ZD API
 export async function getUsers(
-  ids: Array<number | null>,
+  ids: Array<number>,
 ): Promise<Record<string, User>> {
   if (!ids.length) {
     return {};
   }
 
-  let users: Array<User> = [];
+  debug(`Fetching users: ${ids.join(',')}.`);
 
   let r = await throttle(
-    () =>
+    async () =>
       axios({
         method: 'get',
         url: `${ZD_DOMAIN}/api/v2/users/show_many.json`,
@@ -325,7 +431,7 @@ export async function getUsers(
       }) as unknown as { data: UserManyResponse },
   )();
 
-  users.push(...r.data.users);
+  let users = r.data.users;
 
   while (r.data.next_page) {
     r = await throttle(async () =>
@@ -345,11 +451,12 @@ export async function getUsers(
   return indexById(users);
 }
 
+// Fetch all zendesk groups (typically not many)
 export async function getGroups(): Promise<Record<string, Group>> {
-  let groups: Array<Group> = [];
+  debug('Fetching groups');
 
   let r = await throttle(
-    () =>
+    async () =>
       axios({
         method: 'get',
         url: `${ZD_DOMAIN}/api/v2/groups`,
@@ -360,7 +467,7 @@ export async function getGroups(): Promise<Record<string, Group>> {
       }) as unknown as { data: GroupManyResponse },
   )();
 
-  groups.push(...r.data.groups);
+  let groups = r.data.groups;
 
   while (r.data.next_page) {
     r = await throttle(async () =>
@@ -380,11 +487,12 @@ export async function getGroups(): Promise<Record<string, Group>> {
   return indexById(groups);
 }
 
-export async function getTicketFields(): Promise<Record<string, TicketField>> {
-  let ticketFields: Array<TicketField> = [];
+// Fetch all Zendesk fields used for ticket metadata
+export async function getFields(): Promise<Record<string, Field>> {
+  debug('Fetch ticket fields');
 
   let r = await throttle(
-    () =>
+    async () =>
       axios({
         method: 'get',
         url: `${ZD_DOMAIN}/api/v2/ticket_fields`,
@@ -395,7 +503,7 @@ export async function getTicketFields(): Promise<Record<string, TicketField>> {
       }) as unknown as { data: TicketFieldManyResponse },
   )();
 
-  ticketFields.push(...r.data.ticket_fields);
+  let ticketFields = r.data.ticket_fields;
 
   while (r.data.next_page) {
     r = await throttle(async () =>
@@ -415,7 +523,21 @@ export async function getTicketFields(): Promise<Record<string, TicketField>> {
   return indexById(ticketFields);
 }
 
-function indexById<T extends { id: number }>(
+///////////////////////
+// Utility functions //
+///////////////////////
+
+// Find customer org id from ZD custom field
+export function getCustomerOrgId(ticket: Ticket): number | undefined {
+  const f = ticket.custom_fields.find(
+    (f) => f.id === ORG_FIELD_ID && f.value !== null,
+  );
+
+  return f?.id;
+}
+
+// Map an array of objects with key '`d` to an object indexed by `id`
+function indexById<T extends { id: number | string }>(
   data: Array<T>,
 ): Record<string, T> {
   return data.reduce(
@@ -423,34 +545,11 @@ function indexById<T extends { id: number }>(
       cur[next.id] = next;
       return cur;
     },
-    {} as Record<number, T>,
+    {} as Record<number | string, T>,
   );
 }
 
 // TYPES
-
-export const SAP_FIELD = 'sap_id';
-
-export interface TicketArchive {
-  ticket: Ticket;
-  comments: Array<Comment>;
-  attachments: Record<number, Attachment>;
-  org: Org | null;
-  users: Record<number, User>;
-  orgs: Record<number, Org>;
-  groups: Record<number, Group>;
-  ticketFields: Record<number, TicketField>;
-  sideConversations: Array<SideConversationWithEvents>;
-}
-
-export interface Org {
-  id: number;
-  name: string;
-  [SAP_FIELD]: string;
-  organization_fields: {
-    [SAP_FIELD]: string;
-  };
-}
 
 interface OrgManyResponse {
   organizations: Array<Org>;
@@ -467,87 +566,6 @@ interface SearchResponse {
   count: number;
 }
 
-export interface Ticket {
-  url: string;
-  id: number;
-  external_id: number | null;
-  via: {
-    channel: number;
-    source: {
-      from: {
-        address: string;
-        name: string;
-      };
-      to: {
-        name: string;
-        address: string;
-      };
-      rel: string | null;
-    };
-  };
-  created_at: string;
-  updated_at: string;
-  type: null;
-  subject: string;
-  raw_subject: string;
-  description: string;
-  priority: string;
-  status: string;
-  recipient: string;
-  requester_id: number;
-  submitter_id: number;
-  assignee_id: number;
-  organization_id: number | null;
-  group_id: number;
-  collaborator_ids: any[];
-  follower_ids: any[];
-  email_cc_ids: any[];
-  forum_topic_id: null;
-  problem_id: null;
-  has_incidents: false;
-  is_public: true;
-  due_at: null;
-  tags: any[];
-  custom_fields: Array<{
-    id: number;
-    value: any;
-  }>;
-  satisfaction_rating: any;
-  sharing_agreement_ids: any[];
-  custom_status_id: number;
-  fields: Array<{
-    id: number;
-    value: any;
-  }>;
-  followup_ids: string[];
-  ticket_form_id: number;
-  brand_id: number;
-  allow_channelback: boolean;
-  allow_attachments: boolean;
-  from_messaging_channel: boolean;
-  result_type: string;
-}
-
-export interface Attachment {
-  url: string;
-  id: number;
-  file_name: string;
-  content_url: string;
-  mapped_content_url: string;
-  content_type: string;
-  size: number;
-  width: null | string;
-  height: null | string;
-  inline: boolean;
-  deleted: boolean;
-  malware_access_override: boolean;
-  malware_scan_result: string;
-}
-
-export type OrgTicket = Ticket & {
-  organization: Org;
-};
-
 export type EnsureResult = {
   entry?: any;
   matches?: any[];
@@ -555,44 +573,11 @@ export type EnsureResult = {
   new?: boolean;
 };
 
-export interface User {
-  id: number;
-  name: string;
-}
-
 interface UserManyResponse {
   users: Array<User>;
   next_page: string | null;
   previous_page: string | null;
   count: number;
-}
-
-export interface Comment {
-  id: number;
-  type: 'Comment';
-  author_id: number;
-  body: string;
-  html_body: string;
-  plain_body: string;
-  public: boolean;
-  attachments: Array<Attachment>;
-  audit_id: number;
-  via: {
-    channel: string;
-    source: {
-      from: {
-        address: string;
-        name: string | null;
-        organization_recipients: Array<string> | null;
-      };
-      to: {
-        name: string | null;
-        address: string;
-        email_ccs: Array<number>;
-      };
-    };
-  };
-  created_at: string;
 }
 
 interface CommentsResponse {
@@ -602,103 +587,25 @@ interface CommentsResponse {
   count: number;
 }
 
-export interface SideConversation {
-  url: string;
-  id: string;
-  ticket_id: number;
-  subject: string;
-  preview_text: string;
-  state: string;
-  participants: Array<{
-    user_id: number;
-    name: string;
-    email: string;
-  }>;
-  created_at: string;
-  updated_at: string;
-  message_added_at: string;
-  state_updated_at: string;
-  external_ids:
-  | {}
-  | {
-    targetTicketId: number;
-  };
-}
-
-interface SideConversationResponse {
+interface SideConversationsResponse {
   side_conversations: Array<SideConversation>;
   next_page: string | null;
   previous_page: string | null;
   count: number;
 }
 
-export interface SideConversationWithEvents {
-  side_conversation: SideConversation;
-  events?: Array<{
-    id: string;
-    side_conversation_id: string;
-    actor: {
-      user_id: number;
-      name: string;
-      email: string;
-    };
-    type: string;
-    via: string;
-    created_at: string;
-    message: {
-      subject: string;
-      preview_text: string;
-      from: {
-        user_id: number;
-        name: string;
-        email: string;
-      };
-      to: Array<{
-        user_id: number;
-        name: string;
-        email: string;
-      }>;
-      body: string;
-      html_body: string;
-      external_ids: {
-        ticketAuditId: string;
-        outboundEmail?: string;
-      };
-      attachments: Array<{
-        id: string;
-        file_name: string;
-        size: number;
-        content_url: string;
-        content_type: string;
-        width: number;
-        height: number;
-        inline: boolean;
-      }>;
-      updates: {};
-      ticket_id: number;
-    };
-  }>;
-}
-
-export interface TicketField {
-  id: number;
-  position: number;
-  description: string;
-  title: string;
-  type: string;
-}
-
-interface TicketFieldManyResponse {
-  ticket_fields: Array<TicketField>;
+interface SideConversationEventsResponse {
+  events: Array<SideConversationEvent>;
   next_page: string | null;
   previous_page: string | null;
   count: number;
 }
 
-export interface Group {
-  description: string;
-  id: number;
-  name: string;
+interface TicketFieldManyResponse {
+  ticket_fields: Array<Field>;
+  next_page: string | null;
+  previous_page: string | null;
+  count: number;
 }
 
 interface GroupManyResponse {
