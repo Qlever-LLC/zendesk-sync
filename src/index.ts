@@ -288,7 +288,6 @@ export async function handleTicket(
       tree: tpDocTypesTree,
     });
 
-    /*
     await axios({
       method: 'put',
       url: `${ZD_DOMAIN}/api/v2/tickets/${ticket.id}.json`,
@@ -302,7 +301,6 @@ export async function handleTicket(
         },
       },
     });
-    */
 
     debug(`Marked sync operation for ticket [${ticket.id}] as finished.`);
     if (cleanup) {
