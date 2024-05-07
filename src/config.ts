@@ -18,6 +18,13 @@
 import libConfig from '@oada/lib-config';
 
 export const { config } = await libConfig({
+  'mode': {
+    doc: 'Run sync in production mode',
+    format: String,
+    default: 'testing',
+    env: 'NODE_ENV',
+    arg: 'mode',
+  },
   'oada': {
     domain: {
       doc: 'OADA API domain',

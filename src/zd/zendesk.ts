@@ -102,6 +102,15 @@ export async function getTicketArchive({ id }: Ticket): Promise<TicketArchive> {
         c.author_id,
         ...('email_ccs' in c.via.source.to ? c.via.source.to.email_ccs : []),
       ])
+      .concat([
+        ticket.assignee_id,
+        ticket.requester_id,
+        ticket.submitter_id,
+        ticket.assignee_id,
+      ])
+      .concat(ticket.collaborator_ids)
+      .concat(ticket.follower_ids)
+      .concat(ticket.email_cc_ids)
       .flat()
       .filter((user, index, array) => array.indexOf(user) === index),
   );
@@ -533,7 +542,7 @@ export function getCustomerOrgId(ticket: Ticket): number | undefined {
     (f) => f.id === ORG_FIELD_ID && f.value !== null,
   );
 
-  return f?.id;
+  return f?.value;
 }
 
 // Map an array of objects with key '`d` to an object indexed by `id`

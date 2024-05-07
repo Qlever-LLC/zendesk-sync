@@ -12,6 +12,8 @@
     </head>`;
 
   export let comment: string;
+
+  comment = comment.replace(/page: [a-zA-Z0-9_.-]+;/, '');
 </script>
 
 <div class="comment break-inside-auto">

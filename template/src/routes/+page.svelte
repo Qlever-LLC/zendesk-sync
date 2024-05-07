@@ -17,10 +17,10 @@
 
   let parent_id: string | undefined;
 
-  import { data } from '$lib/sample';
-  let p = new Promise<TicketArchive>((resolve) => resolve(data))
-    // let p = fetch('http://127.0.0.1/_data')
-    // .then((data) => data.json() as Promise<TicketArchive>)
+  // import { data } from '$lib/sample';
+  // let p = new Promise<TicketArchive>((resolve) => resolve(data))
+  let p = fetch('http://127.0.0.1/_data')
+    .then((data) => data.json() as Promise<TicketArchive>)
     .then((data) => {
       if (typeof data.ticket.external_id === 'string') {
         let parent = data.ticket.external_id.match(/^.*:ticket:(.*)$/);
@@ -129,9 +129,9 @@
       <div class="pt-1 break-inside-avoid">
         <h1 class="text-green-900 font-bold">Assigned to</h1>
         <p class="mt-1 mx-2">
-          {groups[ticket.group_id].name || 'Unknown'}
+          {groups[ticket.group_id]?.name || 'Unknown'}
           /
-          {users[ticket.assignee_id].name || 'Unknown'}
+          {users[ticket.assignee_id]?.name || 'Unknown'}
         </p>
       </div>
 
@@ -214,7 +214,7 @@
                     <div class="text-xs">
                       {conv.participants
                         .filter((u) => users[u.user_id])
-                        .map((u) => users[u.user_id].name)
+                        .map((u) => users[u.user_id]?.name)
                         .join(', ')}
                     </div>
                     <a href={conv.url}>{conv.subject}</a>
@@ -235,7 +235,10 @@
       <div class="flex flex-col w-full text-sm">
         <!-- <h1 class="mb-2 text-lg text-green-900 font-bold">Conversation</h1> -->
         {#each comments as comment, i}
-          <article class="flex flex-col py-2 gap-4 max-w-[90%]">
+          <article
+            class="flex flex-col py-2 gap-4 max-w-[90%]"
+            style={`page: Comments${i}`}
+          >
             <CommentHeader
               author={users[comment.author_id]}
               ccs={'email_ccs' in comment.via.source.to

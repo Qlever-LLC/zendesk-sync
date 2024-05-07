@@ -32,6 +32,7 @@ import esMain from 'es-main';
 import md5 from 'md5';
 import PQueue from 'p-queue';
 import { tpDocTypesTree } from './tree.js';
+import fs from 'node:fs';
 import {
   EnsureResult,
   doCredentialedApiRequest,
@@ -79,7 +80,7 @@ export async function run() {
   // });
   info('Starting up...');
   try {
-    handleTicket(await getTicket(2395), oada as OADAClient);
+    handleTicket(await getTicket(7069), oada as OADAClient);
   } catch (e) {
     error(e);
   }
@@ -154,6 +155,8 @@ export async function handleTicket(
 
     workQueue.set(ticket.id, Date.now());
     const archive = await getTicketArchive(ticket);
+
+    fs.writeFileSync('./sample.json', JSON.stringify(archive));
     const ticketPdf = await generateTicketPdf(archive);
 
     const sapids = archive.org?.organization_fields?.[SAP_FIELD]
@@ -288,23 +291,27 @@ export async function handleTicket(
       tree: tpDocTypesTree,
     });
 
-    await axios({
-      method: 'put',
-      url: `${ZD_DOMAIN}/api/v2/tickets/${ticket.id}.json`,
-      auth: {
-        username,
-        password,
-      },
-      data: {
-        ticket: {
-          status: 'closed',
+    if (config.get('mode') === 'production') {
+      debug(`Marked ticket [${ticket.id}] as closed.`);
+      await axios({
+        method: 'put',
+        url: `${ZD_DOMAIN}/api/v2/tickets/${ticket.id}.json`,
+        auth: {
+          username,
+          password,
         },
-      },
-    });
+        data: {
+          ticket: {
+            status: 'closed',
+          },
+        },
+      });
+    } else {
+      debug(`[Testing mode] Skipping marking ${ticket.id} as closed.`);
+    }
 
-    debug(`Marked sync operation for ticket [${ticket.id}] as finished.`);
     if (cleanup) {
-      debug(`Marked sync operation for ticket [${ticket.id}] as finished.`);
+      debug(`Marked sync operation for ticket ${ticket.id} as finished.`);
       cleanup(ticket.id);
     }
   } catch (err) {
