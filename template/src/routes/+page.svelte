@@ -237,8 +237,8 @@
         {#each comments as comment, i}
           <article
             class="flex flex-col py-2 gap-4 max-w-[90%]"
-            style={`page: Comments${i}`}
           >
+            <!-- style={`page: Comments${i}`} -->
             <CommentHeader
               author={users[comment.author_id]}
               ccs={'email_ccs' in comment.via.source.to

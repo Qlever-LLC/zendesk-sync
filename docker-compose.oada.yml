@@ -1,6 +1,0 @@
-# Thing for oadadeploy nonsense?
-services:
-  serivce:
-    extends:
-      file: ./services/Qlever-LLC/oada-service-template/docker-compose.yml
-      service: service

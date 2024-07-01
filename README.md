@@ -1,23 +1,13 @@
-# USING THIS TEMPLATE
+# Qlever-LLC/zendesk-sync
 
-Once you clone this template repo,
-be sure to change the name by replacing `Qlever-LLC/oada-service-template`
-(e.g., `sed -i 's/Qlever-LLC\/oada-service-template/trellisfw\/awesome-service/g' *`).
-
-You probably will also want to update the license stuff.
-
-Finally, remove this section from the README.
-
-# Qlever-LLC/oada-service-template
-
-[![Coverage Status](https://coveralls.io/repos/Qlever-LLC/oada-service-template/badge.svg?branch=master)](https://coveralls.io/r/Qlever-LLC/oada-service-template?branch=master)
-[![Docker Pulls](https://img.shields.io/docker/pulls/Qlever-LLC/oada-service-template)][dockerhub]
+[![Coverage Status](https://coveralls.io/repos/Qlever-LLC/zendesk-sync/badge.svg?branch=master)](https://coveralls.io/r/Qlever-LLC/zendesk-sync?branch=master)
+[![Docker Pulls](https://img.shields.io/docker/pulls/Qlever-LLC/zendesk-sync)][dockerhub]
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg)](https://github.com/prettier/prettier)
-[![License](https://img.shields.io/github/license/Qlever-LLC/oada-service-template)](LICENSE)
+[![License](https://img.shields.io/github/license/Qlever-LLC/zendesk-sync)](LICENSE)
 
 ## Usage
 
-Docker images for Qlever-LLC/oada-service-template are available from GitHub Container Registry.
+Docker images for Qlever-LLC/zendesk-sync are available from GitHub Container Registry.
 
 ### docker-compose
 
@@ -26,7 +16,7 @@ Here is an example of using this service with docker-compose.
 ```yaml
 services:
   service:
-    image: Qlever-LLC/oada-service-template
+    image: Qlever-LLC/zendesk-sync
     restart: unless-stopped
     environment:
       NODE_TLS_REJECT_UNAUTHORIZED:
@@ -40,7 +30,7 @@ services:
       TOKEN: ${TOKEN:-abc123,def456}
 ```
 
-### Running Qlever-LLC/oada-service-template within the [OADA Reference API Server][]
+### Running Qlever-LLC/zendesk-sync within the [OADA Reference API Server][]
 
 To add this service to the services run with an OADA v3 server,
 simply add a snippet like the one in the previous section
@@ -61,5 +51,5 @@ echo TOKEN=abc123 >> .env # Set API token(s) for the service
 docker-compose up -d
 ```
 
-[dockerhub]: https://hub.docker.com/repository/docker/Qlever-LLC/oada-service-template
+[dockerhub]: https://hub.docker.com/repository/docker/Qlever-LLC/zendesk-sync
 [oada reference api server]: https://github.com/OADA/server

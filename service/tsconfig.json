@@ -1,0 +1,31 @@
+{
+  "extends": "@tsconfig/node20",
+  "compilerOptions": {
+    "composite": true,
+    "module": "node16",
+    "moduleResolution": "node16",
+    "removeComments": true,
+    "stripInternal": true,
+    "importHelpers": true,
+    "alwaysStrict": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedParameters": true,
+    "noImplicitThis": true,
+    "noImplicitAny": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noErrorTruncation": true,
+    "noUnusedLocals": false,
+    "sourceMap": true,
+    "forceConsistentCasingInFileNames": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "src"
+  ]
+}
