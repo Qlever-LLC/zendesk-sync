@@ -267,14 +267,15 @@ export async function archiveTicketService(
         _rev: 0,
       },
     },
-    tree: tpDocTypesTree,
+    // FIXME: Reable tree after tree put fixed
+    //tree: tpDocTypesTree,
   });
 
   log.debug({ ticketId }, 'Updating Zendesk ticket Trellis state/status');
   // Update state on Zendesk ticket
   await setTrellisState(ticketArchive.ticket, {
     state: 'trellis-archived',
-    status: trellisId,
+    status: context.jobId,
   });
 
   // Setup closer
@@ -326,6 +327,7 @@ async function ensurePath(oada: OADAClient, path: string, contentType: string) {
   try {
     await oada.head({ path });
   } catch (error) {
+    log.warn({ error, path }, 'ensurePath work?');
     if ((error as { status: number })?.status === 404) {
       await oada.put({
         path,

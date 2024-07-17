@@ -142,7 +142,7 @@ async function computeNextState(ticket: Ticket): Promise<TrellisState> {
     log.trace({ ticketId }, 'Skipping young ticket with no SAPID.');
     return {
       state: 'trellis-pending',
-      status: `The ticket's organization does not have an SAP ID. Please set one at ${config.get('zendesk.domain')}/agent/organizations/${customerId}/tickets`,
+      status: `The ticket's organization does not have an SAP ID. Please set one at ${config.get('zendesk.domain')}/agent/organizations/${customerId}`,
     };
 
     // The ticket is too old, and will be auto-closed by ZenDesk. Force an archive without an SAP ID.

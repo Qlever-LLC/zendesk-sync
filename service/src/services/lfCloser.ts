@@ -111,7 +111,6 @@ export async function lfCloserService(
     throw new Error('Could not determine Laserfiche ID for ticket PDF!');
   }
 
-  /* FIXME: Disable path field until lf-sync support the filing workflow
   const path = entities[ticketVdocKey]?.path
     .split('\\')
     .slice(0, -1)
@@ -120,7 +119,6 @@ export async function lfCloserService(
     log.error({ ticketId }, 'No Laserfiche path for ticket PDF?');
     throw new Error('Could not determine Laserfiche path for ticket folder!');
   }
-  */
 
   log.info({ ticketId }, 'Ticket is in LF. Update Zendesk state and status');
   await setTrellisState(ticket, {
@@ -131,12 +129,10 @@ export async function lfCloserService(
   if (config.get('service.lfCloser.pathFieldId') > 0) {
     log.debug({ ticketId }, 'Add LF path meta data back to Zendesk');
     await setCustomField(ticket, [
-      /* FIXME: Disable path field until lf-sync support the filing workflow
       {
         id: config.get('service.lfCloser.pathFieldId'),
         value: path,
       },
-      */
       {
         id: config.get('service.lfCloser.lfIdFieldId'),
         value: `${lfId}`,
