@@ -23,6 +23,7 @@ import { doCredentialedApiRequest } from './zendesk.js';
 import { launch } from 'puppeteer';
 import { makeLoggers } from '../logger.js';
 import path from 'node:path';
+import pTimeout from 'p-timeout';
 
 const log = makeLoggers('pdf');
 
@@ -93,18 +94,63 @@ export async function generateTicketPdf(
 ): Promise<Uint8Array> {
   const puppeteerErrors: string[] = [];
 
-  const browser = await launch({
+  log.debug({ ticketId: archive.ticket.id }, 'Starting Puppeteer');
+  let browser = await launch({
     headless: true,
+    pipe: true,
+    // executablePath: 'google-chrome-stable',
     args: [
       '--disable-extensions',
       '--no-sandbox',
       '--disable-gpu',
       '--disable-web-security',
+      '--disable-dev-shm-usage',
     ],
-    dumpio: true,
+    dumpio: false,
   });
 
-  const page = await browser.newPage();
+  log.trace({ ticketId: archive.ticket.id }, 'Starting new browser page');
+  let page;
+
+  try {
+    page = await pTimeout(browser.newPage(), {
+      milliseconds: 1000,
+      async fallback() {
+        log.debug(
+          { ticketId: archive.ticket.id },
+          'Could not start new page. Trying again.',
+        );
+
+        await browser.close();
+        browser = await launch({
+          headless: true,
+          pipe: true,
+          // executablePath: 'google-chrome-stable',
+          args: [
+            '--disable-extensions',
+            '--no-sandbox',
+            '--disable-gpu',
+            '--disable-web-security',
+            '--disable-dev-shm-usage',
+          ],
+          dumpio: false,
+        });
+
+        return pTimeout(browser.newPage(), { milliseconds: 1000 });
+      },
+    });
+  } catch (error) {
+    await browser.close();
+    log.error(
+      { ticketId: archive.ticket.id },
+      `Could not create new page in puppeteer! ${error}`,
+    );
+
+    throw error;
+  }
+
+  log.trace({ ticketId: archive.ticket.id }, `Have new page: ${page}`);
+
   page
     .on('load', log.trace)
     .on('error', (error) => {
@@ -130,6 +176,10 @@ export async function generateTicketPdf(
       puppeteerErrors.push(request.failure()?.errorText ?? 'Request failure');
     });
 
+  log.trace(
+    { ticketId: archive.ticket.id },
+    'Setting requestInterception = true',
+  );
   await page.setRequestInterception(true);
 
   page.on('request', async (request) => {
@@ -166,17 +216,54 @@ export async function generateTicketPdf(
     }
   });
 
-  await page.goto(`http://${await address}/`, {
-    waitUntil: ['load', 'networkidle0'],
-  });
+  log.trace(
+    { ticketId: archive.ticket.id },
+    `Going to http://${await address}/`,
+  );
+  try {
+    await pTimeout(
+      page.goto(`http://${await address}/`, {
+        waitUntil: ['load', 'networkidle0'],
+      }),
+      {
+        milliseconds: 10_000,
+        async fallback() {
+          log.debug(
+            { ticketId: archive.ticket.id },
+            'Could not navigate to ticket template. Trying again.',
+          );
 
+          return pTimeout(
+            page.goto(`http://${await address}/`, {
+              waitUntil: ['load', 'networkidle0'],
+            }),
+            { milliseconds: 10_000 },
+          );
+        },
+      },
+    );
+  } catch (error) {
+    await browser.close();
+    log.error(
+      { ticketId: archive.ticket.id },
+      `Could not navigate to ticket template! ${error}`,
+    );
+
+    throw error;
+  }
+
+  log.trace({ ticketId: archive.ticket.id }, 'Saving page PDF.');
   const pdf = await page.pdf({
     format: 'letter',
     margin: { top: '20px', left: '20px', right: '20px', bottom: '20px' },
     printBackground: true,
   });
 
+  log.trace({ ticketId: archive.ticket.id }, 'Closing page.');
+  await page.close();
+  log.trace({ ticketId: archive.ticket.id }, 'Closing browser.');
   await browser.close();
+  log.trace({ ticketId: archive.ticket.id }, 'PDF done.');
 
   if (puppeteerErrors.length > 0) {
     throw new Error(

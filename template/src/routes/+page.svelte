@@ -1,28 +1,28 @@
 <script lang="ts">
-  import '../app.css';
+  import "../app.css";
   import {
     formatLongDate,
     formatYMD,
     formatLongDate2,
     formatYMD2,
-  } from '$lib/utils';
+  } from "$lib/utils";
 
-  import type { TicketArchive } from '../../../src/types';
+  import type { TicketArchive } from "../../../src/types";
 
-  import Header from '$lib/components/Header.svelte';
-  import InfoBadge from '$lib/components/InfoBadge.svelte';
-  import CommentHeader from '$lib/components/CommentHeader.svelte';
-  import ZDComment from '$lib/components/ZDComment.svelte';
-  import Attachment from '$lib/components/Attachment.svelte';
+  import Header from "$lib/components/Header.svelte";
+  import InfoBadge from "$lib/components/InfoBadge.svelte";
+  import CommentHeader from "$lib/components/CommentHeader.svelte";
+  import ZDComment from "$lib/components/ZDComment.svelte";
+  import Attachment from "$lib/components/Attachment.svelte";
 
   let parent_id: string | undefined;
 
   // import { data } from '$lib/sample';
   // let p = new Promise<TicketArchive>((resolve) => resolve(data))
-  let p = fetch('http://127.0.0.1/_data')
+  let p = fetch("http://127.0.0.1/_data")
     .then((data) => data.json() as Promise<TicketArchive>)
     .then((data) => {
-      if (typeof data.ticket.external_id === 'string') {
+      if (typeof data.ticket.external_id === "string") {
         let parent = data.ticket.external_id.match(/^.*:ticket:(.*)$/);
         if (parent && parent.length == 2) {
           parent_id = parent[1];
@@ -40,9 +40,9 @@
       .filter((value, index, array) => array.indexOf(value) === index)}
     <div>
       <Header
-        type={ticket.via.channel === 'side_conversation'
-          ? 'Side Ticket'
-          : 'Ticket'}
+        type={ticket.via.channel === "side_conversation"
+          ? "Side Ticket"
+          : "Ticket"}
         ticketId={ticket.id}
       />
 
@@ -53,14 +53,14 @@
         {sideConversations.length || 0} side conversations
       </InfoBadge>
       <h1 class="my-1 font-bold text-3xl">
-        #{ticket.id} - {ticket.subject || 'No Subject'}
+        #{ticket.id} - {ticket.subject || "No Subject"}
       </h1>
 
       <div class="stats break-inside-avoid">
         <div class="stat">
           <div class="stat-title">Status</div>
           <div class="stat-value capitalize text-primary text-lg">
-            {ticket.status || 'Unknown'}
+            {ticket.status || "Unknown"}
           </div>
         </div>
 
@@ -114,13 +114,13 @@
         </div>
       {/if}
 
-      {#if 'name' in ticket.via.source.from}
+      {#if "name" in ticket.via.source.from}
         <div class="pt-1 break-inside-avoid">
           <div class="text-sm">Opened by</div>
           <p class="mt-1 mx-2">
-            {ticket.via.source.from.name || ''}
+            {ticket.via.source.from.name || ""}
             {#if ticket.via.source.from.address}
-              &lt;{ticket.via.source.from.address || ''}&gt;
+              &lt;{ticket.via.source.from.address || ""}&gt;
             {/if}
           </p>
         </div>
@@ -129,9 +129,9 @@
       <div class="pt-1 break-inside-avoid">
         <h1 class="text-green-900 font-bold">Assigned to</h1>
         <p class="mt-1 mx-2">
-          {groups[ticket.group_id]?.name || 'Unknown'}
+          {groups[ticket.group_id]?.name || "Unknown"}
           /
-          {users[ticket.assignee_id]?.name || 'Unknown'}
+          {users[ticket.assignee_id]?.name || "Unknown"}
         </p>
       </div>
 
@@ -141,8 +141,8 @@
           <ol class="">
             {#each participants as u}
               <li class="my-0">
-                {users[u]?.name || 'Unknown'}
-                {users[u]?.email ? `<${users[u].email}>` : ''}
+                {users[u]?.name || "Unknown"}
+                {users[u]?.email ? `<${users[u].email}>` : ""}
               </li>
             {/each}
           </ol>
@@ -166,7 +166,7 @@
         <h1 class="text-green-900 font-bold">Request SAP ID</h1>
         <div class="mt-1 badge badge-lg">
           {#if org}
-            {org.organization_fields.sap_id || '--'}
+            {org.organization_fields.sap_id || "--"}
           {:else}
             <span class="italic">None</span>
           {/if}
@@ -180,12 +180,12 @@
             {#each ticket.custom_fields as field}
               {@const t = fields[field.id]}
               <tr>
-                <th>{t.title || ''}</th>
+                <th>{t.title || ""}</th>
                 <td>
                   {(t.custom_field_options &&
                     t.custom_field_options.find((f) => f.value == field.value)
                       ?.name) ||
-                    '--'}
+                    "--"}
                 </td>
               </tr>
             {/each}
@@ -215,7 +215,7 @@
                       {conv.participants
                         .filter((u) => users[u.user_id])
                         .map((u) => users[u.user_id]?.name)
-                        .join(', ')}
+                        .join(", ")}
                     </div>
                     <a href={conv.url}>{conv.subject}</a>
                   </td>
@@ -235,13 +235,11 @@
       <div class="flex flex-col w-full text-sm">
         <!-- <h1 class="mb-2 text-lg text-green-900 font-bold">Conversation</h1> -->
         {#each comments as comment, i}
-          <article
-            class="flex flex-col py-2 gap-4 max-w-[90%]"
-          >
+          <article class="flex flex-col py-2 gap-4 max-w-[90%]">
             <!-- style={`page: Comments${i}`} -->
             <CommentHeader
               author={users[comment.author_id]}
-              ccs={'email_ccs' in comment.via.source.to
+              ccs={"email_ccs" in comment.via.source.to
                 ? comment.via.source.to.email_ccs.map((id) => users[id])
                 : []}
               created={formatLongDate(comment.created_at)}
@@ -286,10 +284,10 @@
       {@const numMessages = events.filter((e) => e.message).length}
       <div class="navbar bg-base-300 flex break-inside-avoid">
         <Header
-          type={'Side ' +
-            ('targetTicketId' in sideConversation.external_ids
-              ? 'Ticket'
-              : 'E-Mail')}
+          type={"Side " +
+            ("targetTicketId" in sideConversation.external_ids
+              ? "Ticket"
+              : "E-Mail")}
           ticketId={sideConversation.ticket_id}
           sideConversationId={sideConversation.id}
         />
@@ -299,14 +297,14 @@
         {numMessages} messages
       </InfoBadge>
       <h1 class="my-1 font-bold text-3xl">
-        {sideConversation.subject || 'No Subject'}
+        {sideConversation.subject || "No Subject"}
       </h1>
 
       <div class="stats break-inside-avoid">
         <div class="stat">
           <div class="stat-title">Status</div>
           <div class="stat-value capitalize text-primary text-lg">
-            {sideConversation.state || 'Unknown'}
+            {sideConversation.state || "Unknown"}
           </div>
         </div>
 
@@ -332,7 +330,10 @@
         <div class="prose">
           <ol class="">
             {#each sideConversation.participants as participant}
-              <li class="my-0">{participant.name} {'<'}{participant.email}></li>
+              <li class="my-0">
+                {participant?.name}
+                {"<"}{participant?.email}>
+              </li>
             {/each}
           </ol>
         </div>

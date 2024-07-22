@@ -33,7 +33,7 @@ import { makeLfCloserJob } from './lfCloser.js';
 import { makeLoggers } from '../logger.js';
 import md5 from 'md5';
 
-const log = makeLoggers('service:archive');
+const log = makeLoggers('service:archiveTicket');
 
 export async function makeArchiveTicketJob(
   oada: OADAClient,
@@ -87,7 +87,7 @@ export async function archiveTicketService(
   const sapids = sapField ? sapField.split(',').map((id) => `sap:${id}`) : [];
   const zid = `zendesk:${ticketArchive.org.id}`;
 
-  log.debug({ ticketId }, 'Reslove trading partner with trellis-data-manager');
+  log.debug({ ticketId }, 'Resolve trading partner with trellis-data-manager');
   const { result } = (await doJob(context.oada, {
     service: 'trellis-data-manager',
     type: 'trading-partners-ensure',
@@ -184,6 +184,9 @@ export async function archiveTicketService(
       attach.content_url,
     );
     const hash = md5(buff.toString());
+    // Blindly delete the fixed asset path to avoid a 422 bug in OADA if this attachment has been processed before
+    await context.oada.delete({ path: `/${trellisId}/_meta/vdoc/pdf/${hash}` });
+
     await context.oada.put({
       path: `/${trellisId}/_meta/vdoc/pdf/${hash}`,
       data: buff,
@@ -222,6 +225,10 @@ export async function archiveTicketService(
         attach.content_url,
       );
       const hash = md5(buff.toString());
+      // Blindly delete the fixed asset path to avoid a 422 bug in OADA if this attachment has been processed before
+      await context.oada.delete({
+        path: `/${trellisId}/_meta/vdoc/pdf/${hash}`,
+      });
       await context.oada.put({
         path: `/${trellisId}/_meta/vdoc/pdf/${hash}`,
         data: buff,

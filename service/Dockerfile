@@ -12,20 +12,39 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG NODE_VER=16-alpine
+ARG NODE_VER=20-alpine
 ARG DIR=/usr/src/app/
 
-FROM node:$NODE_VER AS install
+FROM node:$NODE_VER AS base
 ARG DIR
+
+# Install needed packages
+RUN apk add --no-cache \
+  dumb-init \
+  chromium \
+  nss \
+  freetype \
+  harfbuzz \
+  ca-certificates \
+  ttf-freefont
+
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 WORKDIR ${DIR}
 
 COPY ./.yarn ${DIR}.yarn
 COPY ./package.json ./yarn.lock ./.yarnrc.yml ${DIR}
 
+RUN chown -R node:node ${DIR}
+USER node
+
 RUN yarn workspaces focus --all --production
 
-FROM install AS build
+ENTRYPOINT ["/usr/bin/dumb-init", "--rewrite", "15:2", "--", "yarn", "run"]
+CMD ["start"]
+
+FROM base as build
 ARG DIR
 
 # Install dev deps too
@@ -33,28 +52,57 @@ RUN yarn install --immutable
 
 COPY . ${DIR}
 
-# Build code and remove dev deps
-RUN yarn build --verbose && yarn template:build && rm -rfv .yarn .pnp*
+# build code
+RUN yarn build --verbose
 
-FROM node:$NODE_VER AS production
+
+FROM base as production
 ARG DIR
 
-# Install needed packages
-RUN apk add --no-cache \
-  dumb-init \
-  chromium
+COPY --from=build ${DIR}/dist ${DIR}/dist
 
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
-# Do not run service as root
-USER node
 
-WORKDIR ${DIR}
-
-COPY --from=install ${DIR} ${DIR}
-COPY --from=build ${DIR} ${DIR}
-
-# Launch entrypoint with dumb-init
-# Remap SIGTERM to SIGINT https://github.com/Yelp/dumb-init#signal-rewriting
-ENTRYPOINT ["/usr/bin/dumb-init", "--rewrite", "15:2", "--", "yarn", "run"]
-CMD ["start"]
+#
+#
+#
+# RUN yarn workspaces focus --all --production
+#
+# FROM install AS build
+# ARG DIR
+#
+# # Install dev deps too
+# RUN yarn install --immutable
+#
+# COPY . ${DIR}
+#
+# # Build code and remove dev deps
+# RUN yarn build --verbose && rm -rfv .yarn .pnp*
+#
+# FROM node:$NODE_VER AS production
+# ARG DIR
+#
+# # Install needed packages
+# RUN apk add --no-cache \
+#   dumb-init \
+#   chromium \
+#   nss \
+#   freetype \
+#   harfbuzz \
+#   ca-certificates \
+#   ttf-freefont
+#
+# ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+#
+# # Do not run service as root
+# USER node
+#
+# WORKDIR ${DIR}
+#
+# COPY --from=install ${DIR} ${DIR}
+# COPY --from=build ${DIR} ${DIR}
+#
+# # Launch entrypoint with dumb-init
+# # Remap SIGTERM to SIGINT https://github.com/Yelp/dumb-init#signal-rewriting
+# ENTRYPOINT ["/usr/bin/dumb-init", "--rewrite", "15:2", "--", "yarn", "run"]
+# CMD ["start"]

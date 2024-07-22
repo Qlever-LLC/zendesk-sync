@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { User } from '../../../../src/types';
+  import type { User } from "../../../../src/types";
 
   export let author: User;
   export let ccs: Array<User>;
@@ -20,7 +20,7 @@
           class="bg-accent opacity-75 text-neutral-content rounded-full w-10"
         >
           <span class="text-2xl font-bold">
-            {(author.name || '').substr(0, 1)}
+            {(author?.name || "").substr(0, 1)}
           </span>
         </div>
       </div>
@@ -31,9 +31,9 @@
     <div class="flex flex-row">
       <span class="flex-1">
         <span class="font-bold">
-          {author.name || 'Unknown'}
+          {author?.name || "Unknown"}
         </span>
-        {#if author.email}
+        {#if author?.email}
           <span class="text-secondary">
             &lt;{author.email}&gt;
           </span>
@@ -50,10 +50,10 @@
         CCs:
         {#if ccs.length > 0}
           {#each ccs as user, i}
-            "{user.name || 'Unknown'}"
+            "{user?.name || "Unknown"}"
             <span class="text-secondary">
-              {#if user.email}
-                &lt;{user.email}&gt;
+              {#if user?.email}
+                &lt;{user?.email}&gt;
                 {#if i != ccs.length - 1},{/if}
               {/if}
             </span>

@@ -59,7 +59,7 @@ export const { config } = await libConfig({
       timeout: {
         doc: 'Time limit for processing a ticket archive',
         format: Number,
-        default: 100_000,
+        default: 5 * 60 * 1000,
         env: 'SERVICE_ARCHIVE_TIMEOUT',
         arg: 'service-archive-timeout',
       },

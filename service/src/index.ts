@@ -61,7 +61,7 @@ async function run() {
     service = new Service({
       name: 'zendesk-sync',
       oada,
-      concurrency: 1, //config.get('zendesk.concurrency'),
+      concurrency: config.get('zendesk.concurrency'),
     });
 
     log.info({}, 'Initialize `archiveTicket` service');
@@ -82,20 +82,12 @@ async function run() {
     await service.start();
 
     log.info({}, 'Start polling ZenDesk polling service');
-    //poller = pollerService(oada);
-    ////
-
-    // FIXME: REMOVE FIXED TICKET TEST CODE
-    await makeArchiveTicketJob(oada, {
-      ticketId: 6614,
-      closer: isCloser(config.get('service.poller.closer')),
-    });
-    // FIXME: END
+    poller = pollerService(oada);
+    //
   } catch (error) {
     log.fatal({ error }, `Failed to start service: ${error}`);
     // Try to stop poller, if needed
     if (poller) {
-      // @ts-expect-error Testing
       poller.stop();
     }
 
