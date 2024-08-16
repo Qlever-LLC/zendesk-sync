@@ -517,7 +517,7 @@ __metadata:
     "@oada/lib-prom": "npm:^3.8.0"
     "@oada/pino-debug": "npm:^3.10.0"
     "@oada/types": "npm:^3.5.3"
-    "@tsconfig/node20": "npm:^20.1.4"
+    "@tsconfig/node22": "npm:^22.0.0"
     "@types/clone-deep": "npm:^4.0.4"
     "@types/convict": "npm:^6.1.6"
     "@types/cron": "npm:^2.4.0"
@@ -624,10 +624,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tsconfig/node20@npm:^20.1.4":
-  version: 20.1.4
-  resolution: "@tsconfig/node20@npm:20.1.4"
-  checksum: 10c0/239cd6abaceaaffc758e7a9dd3748ec1acfdabd6de28a9a16a3824c21f17ad69a16184870298460345d2fb6f3663d092c21d5b764bef669a179658b4a7eac739
+"@tsconfig/node22@npm:^22.0.0":
+  version: 22.0.0
+  resolution: "@tsconfig/node22@npm:22.0.0"
+  checksum: 10c0/ccb736a008d33fb5ae0ac1254e83d7fa53cdbade02c645131eafcddd11f61982a4efe4c507487952202c240d2bd46c991561a4a0dfea52972947446d80de2081
   languageName: node
   linkType: hard
 

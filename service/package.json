@@ -72,7 +72,7 @@
   },
   "devDependencies": {
     "@ava/typescript": "^5.0.0",
-    "@tsconfig/node20": "^20.1.4",
+    "@tsconfig/node22": "^22.0.0",
     "@types/clone-deep": "^4.0.4",
     "@types/convict": "^6.1.6",
     "@types/cron": "^2.4.0",
