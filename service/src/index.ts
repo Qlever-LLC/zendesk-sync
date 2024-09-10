@@ -64,12 +64,12 @@ async function run() {
       concurrency: config.get('zendesk.concurrency'),
     });
 
-    log.info({}, 'Initialize `archiveTicket` service');
-    service.on(
-      config.get('service.archiveTicket.name'),
-      config.get('service.archiveTicket.timeout'),
-      archiveTicketService,
-    );
+    // log.info({}, 'Initialize `archiveTicket` service');
+    // service.on(
+    //   config.get('service.archiveTicket.name'),
+    //   config.get('service.archiveTicket.timeout'),
+    //   archiveTicketService,
+    // );
 
     log.info({}, 'Initialize `lfCloser` service');
     service.on(
