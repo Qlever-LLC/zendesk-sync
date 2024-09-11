@@ -36,11 +36,14 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 WORKDIR ${DIR}
 
-COPY ./package.json ./yarn.lock ./.yarnrc.yml ./.yarn ${DIR}/
+RUN yarn set version berry
+
+COPY ./package.json ./yarn.lock ./.yarnrc.yml ${DIR}/
 COPY ./template/package.json ${DIR}/template/
 COPY ./service/package.json ${DIR}/service/
 
-RUN chown -R node:node ${DIR} && yarn workspaces focus --all --production
+RUN chown -R node:node ${DIR} \
+  && yarn workspaces focus --all --production
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--rewrite", "15:2", "--", "yarn", "workspace", "@qlever-llc/zendesk-sync", "run"]
 CMD ["start"]
