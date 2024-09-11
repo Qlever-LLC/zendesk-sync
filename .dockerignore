@@ -1,5 +1,6 @@
 # Don't copy in git history?
 .git*
+**/.git*
 
 # Don't copy tests into images?
 **/test/**
@@ -24,15 +25,17 @@
 
 # Built TS etc.
 **/dist
+**/dist-template
 **/coverage
 **/.test
 **/*.tsbuildinfo
+**/node_modules
 
 # yarn 3 stuff
-.yarn/*
-!.yarn/releases
-!.yarn/plugins
-!.yarn/versions
-.pnp.*
+**/.yarn/*
+!**/.yarn/releases
+!**/.yarn/plugins
+!**/.yarn/versions
+**.pnp.*
 # ignore sdk stuff
-.vim
+**.vim
