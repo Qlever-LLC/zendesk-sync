@@ -14,11 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import {
-  archiveTicketService,
-  makeArchiveTicketJob,
-} from './services/archiveTicket.js';
 import { Service } from '@oada/jobs';
+import { archiveTicketService } from './services/archiveTicket.js';
 import { config } from './config.js';
 import { connect } from '@oada/client';
 import esMain from 'es-main';
@@ -26,7 +23,6 @@ import { lfCloserService } from './services/lfCloser.js';
 import { makeLoggers } from './logger.js';
 import { pollerService } from './services/poller.js';
 import { readFileSync } from 'node:fs';
-import { isCloser } from './types.js';
 
 const log = makeLoggers('');
 
@@ -64,12 +60,12 @@ async function run() {
       concurrency: config.get('zendesk.concurrency'),
     });
 
-    // log.info({}, 'Initialize `archiveTicket` service');
-    // service.on(
-    //   config.get('service.archiveTicket.name'),
-    //   config.get('service.archiveTicket.timeout'),
-    //   archiveTicketService,
-    // );
+    log.info({}, 'Initialize `archiveTicket` service');
+    service.on(
+      config.get('service.archiveTicket.name'),
+      config.get('service.archiveTicket.timeout'),
+      archiveTicketService,
+    );
 
     log.info({}, 'Initialize `lfCloser` service');
     service.on(
