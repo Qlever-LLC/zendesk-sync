@@ -14,15 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Service } from '@oada/jobs';
-import { archiveTicketService } from './services/archiveTicket.js';
+
 import { config } from './config.js';
-import { connect } from '@oada/client';
+
+import { readFile } from 'node:fs/promises';
+
 import esMain from 'es-main';
+
+import { Service } from '@oada/jobs';
+import { connect } from '@oada/client';
+
+import { archiveTicketService } from './services/archiveTicket.js';
 import { lfCloserService } from './services/lfCloser.js';
 import { makeLoggers } from './logger.js';
 import { pollerService } from './services/poller.js';
-import { readFileSync } from 'node:fs';
 
 const log = makeLoggers('');
 
@@ -32,7 +37,7 @@ const { token, domain } = config.get('oada');
 // 1. Poller:
 //    - Polls ZenDesk for tickets with "closed" and tag "trellis-pending".
 //    - Creates "archive" jobs for each ticket
-//    - Setings ZD field to "processing"
+//    - Settings ZD field to "processing"
 // 2. @oada/jobs `archive`
 //    - Pull ticket data and meta data
 //    - Generates PDF
@@ -40,11 +45,11 @@ const { token, domain } = config.get('oada');
 //    - Updates ZD field to "Trellis Archived"
 //    - Creates an fl-closer job if configured to do so, otherwise close ticket
 // 3. @oada/jobs `lfCloser`
-//    - Askes fl-sync for final location data and archive confirmation
+//    - Asks fl-sync for final location data and archive confirmation
 //    - Updates ZD field to "FoodLogiq Archived"
 //    - Closes ZD Ticket
 
-async function run() {
+export async function run() {
   let oada;
   let service;
   let poller;
@@ -103,7 +108,7 @@ if (esMain(import.meta)) {
   log.trace({}, 'esMain determined to run the service');
 
   const { name, version } = JSON.parse(
-    readFileSync('./package.json', 'utf8'),
+    await readFile('./package.json', 'utf8'),
   ) as { name: string; version: string };
 
   log.info({ name, version }, `Starting ${name}, version ${version}`);

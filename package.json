@@ -1,0 +1,25 @@
+{
+  "private": true,
+  "workspaces": [
+    "service",
+    "template"
+  ],
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "g:eslint": "eslint $INIT_CWD",
+    "test": "yarn workspaces foreach -Apt run test",
+    "build": "yarn workspaces foreach -Apt run build",
+    "g:tsc": "cd $INIT_CWD && tsc -b"
+  },
+  "packageManager": "yarn@4.4.1",
+  "volta": {
+    "node": "22.8.0"
+  },
+  "devDependencies": {
+    "eslint": "^8",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.2"
+  }
+}

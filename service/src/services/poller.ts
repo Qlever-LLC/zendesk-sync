@@ -14,6 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import { config } from '../config.js';
+
+import { CronJob } from 'cron';
+
+import type { OADAClient } from '@oada/client';
+
 import { type Ticket, isCloser } from '../types.js';
 import {
   type TrellisState,
@@ -24,9 +31,6 @@ import {
   searchTickets,
   setTrellisState,
 } from '../zd/zendesk.js';
-import { CronJob } from 'cron';
-import type { OADAClient } from '@oada/client';
-import { config } from '../config.js';
 import { makeArchiveTicketJob } from './archiveTicket.js';
 import { makeLoggers } from '../logger.js';
 
@@ -86,7 +90,7 @@ export function pollerService(oada: OADAClient): CronJob {
             await setTrellisState(ticket, nextState);
           }
 
-          // Make a job to move foward in the state machine
+          // Make a job to move forward in the state machine
           if (nextState.state === 'trellis-processing') {
             log.info({ ticketId: ticket.id }, 'Creating an archive job');
 
@@ -143,7 +147,7 @@ async function computeNextState(ticket: Ticket): Promise<TrellisState> {
       status: `Archiving under ${org.name}, SAPID: ${sapId}`,
     };
 
-    // If the ticket is yound, wait for someone to set the SAP ID on the organization
+    // If the ticket is found, wait for someone to set the SAP ID on the organization
   }
 
   if (age <= config.get('service.poller.force-age')) {

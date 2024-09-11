@@ -23,12 +23,12 @@ ARG DIR
 
 # Install needed packages
 RUN apk add --no-cache \
-  dumb-init \
+  ca-certificates \
   chromium \
-  nss \
+  dumb-init \
   freetype \
   harfbuzz \
-  ca-certificates \
+  nss \
   ttf-freefont
 
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
@@ -36,43 +36,40 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 WORKDIR ${DIR}
 
-COPY ./service/.yarn ${DIR}.yarn
-COPY ./service/package.json ./service/yarn.lock ./service/.yarnrc.yml ${DIR}
+COPY ./package.json ./yarn.lock ./.yarnrc.yml ./.yarn ${DIR}/
+COPY ./template/package.json ${DIR}/template/
+COPY ./service/package.json ${DIR}/service/
 
-RUN chown -R node:node ${DIR}
-USER node
+RUN chown -R node:node ${DIR} && yarn workspaces focus --all --production
 
-RUN yarn workspaces focus --all --production
-
-ENTRYPOINT ["/usr/bin/dumb-init", "--rewrite", "15:2", "--", "yarn", "run"]
+ENTRYPOINT ["/usr/bin/dumb-init", "--rewrite", "15:2", "--", "yarn", "workspace", "@qlever-llc/zendesk-sync", "run"]
 CMD ["start"]
 
 ###
 ## Install and build Svelte template
 ###
-FROM node:$NODE_VER AS buildTemplate
+FROM base AS build-template
 ARG DIR
 
-WORKDIR ${DIR}
-
-COPY ./template/.yarn ${DIR}.yarn
-COPY ./template/package.json ./template/yarn.lock ./template/.yarnrc.yml ${DIR}
+WORKDIR ${DIR}/template/
 
 RUN yarn install --immutable
 
-COPY ./template/. ${DIR}
+COPY ./template ${DIR}/template
 RUN yarn build
 
 ###
 ## Install and build node service
 ###
-FROM base as build
+FROM base AS build-service
 ARG DIR
+
+WORKDIR ${DIR}/service/
 
 # Install dev deps too
 RUN yarn install --immutable
 
-COPY ./service/. ${DIR}
+COPY ./service ${DIR}/service
 
 # build code
 RUN yarn build --verbose
@@ -80,8 +77,11 @@ RUN yarn build --verbose
 ###
 ## Final
 ###
-FROM base as production
+FROM base AS production
 ARG DIR
 
-COPY --from=build ${DIR}/dist ${DIR}/dist
-COPY --from=buildTemplate ${DIR}/dist ${DIR}/dist-template
+WORKDIR ${DIR}/service
+USER node
+
+COPY --from=build-service ${DIR}/service/dist ${DIR}/service/dist
+COPY --from=build-template ${DIR}/template/dist ${DIR}/service/dist-template

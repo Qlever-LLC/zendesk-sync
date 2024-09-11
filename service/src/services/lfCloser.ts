@@ -14,7 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import { config } from '../config.js';
+
 import { type Job, type Json, postJob } from '@oada/jobs';
+import type { OADAClient } from '@oada/client';
+import type { WorkerContext } from '@oada/jobs/dist/Service.js';
+import { doJob } from '@oada/client/jobs';
+
 import {
   getTicket,
   getTicketFieldValue,
@@ -23,10 +30,6 @@ import {
   setTrellisState,
 } from '../zd/zendesk.js';
 import type { LFCloserConfig } from '../types.js';
-import type { OADAClient } from '@oada/client';
-import type { WorkerContext } from '@oada/jobs/dist/Service.js';
-import { config } from '../config.js';
-import { doJob } from '@oada/client/jobs';
 import { makeLoggers } from '../logger.js';
 
 const log = makeLoggers('service:lfCloser');

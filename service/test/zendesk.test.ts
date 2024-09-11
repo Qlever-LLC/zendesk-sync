@@ -15,57 +15,62 @@
  * limitations under the License.
  */
 
-import axios from 'axios';
+/* eslint-disable unicorn/no-null */
+
 import test from 'ava';
-import { config } from '../dist/config.js';
-import { connect } from '@oada/client';
-import { pollZd, handleTicket, watchZendesk, run } from '../dist/index.js';
-import {
-  getTicketArchive,
-  type OrgTicket,
-  type Ticket,
-} from '../dist/zd/zendesk.js';
+
 import { setTimeout } from 'node:timers/promises';
-import md5 from 'md5';
+import { writeFile } from 'node:fs/promises';
+
+import { config } from '../dist/config.js';
+
 import PQueue from 'p-queue';
-import { generatePdf } from '../dist/zd/pdf.js';
-import { writeFileSync } from 'node:fs';
+import axios from 'axios';
+import { launch } from 'puppeteer';
+import md5 from 'md5';
+
+import { connect } from '@oada/client';
+
+import type { OrgTicket, Ticket } from '../dist/types.js';
+import { handleTicket, pollZd, run, watchZendesk } from '../dist/index.js';
+import { generateTicketPdf } from '../dist/zd/pdf.js';
+import { getTicketArchive } from '../dist/zd/zendesk.js';
+
 const { token, domain } = config.get('oada');
 const { password, username, domain: ZD_DOMAIN } = config.get('zendesk');
 const CONCURRENCY = config.get('concurrency');
 const { email1, email2 } = config.get('testing');
 const POLL_RATE = config.get('poll-rate');
-import { launch } from 'puppeteer';
 
 const oada = await connect({ domain, token });
-const CENT_TEST_ORG = 12909020494349;
+const CENT_TEST_ORG = 12_909_020_494_349;
 const MASTERID = 'resources/2ShqFzJoJ1yxjFe9zGSUVuEIBoa';
 console.log(
-  `TESTING WITH THE FOLLOWING TICKET POLL RATE: every ${POLL_RATE} seconds. ADJUST IF NECESSARY.`
+  `TESTING WITH THE FOLLOWING TICKET POLL RATE: every ${POLL_RATE} seconds. ADJUST IF NECESSARY.`,
 );
 
-//test.before('Setup connection and test ticket data', async (t)=> {
+// Test.before('Setup connection and test ticket data', async (t)=> {
 // TODO: Ensure a trading-partner exists with the sap id of the organization in the sandbox
-//})
+// })
 
-//test.after('clean up', async(t)=> {
-//})
+// test.after('clean up', async(t)=> {
+// })
 
 test('Should make ticket from PDF', async (t) => {
   t.timeout(100_000);
   const archive = await getTicketArchive(2459);
   t.assert(archive);
-  //t.assert(archive.org !== null);
-  const pdf = await generatePdf(archive);
+  // T.assert(archive.org !== null);
+  const pdf = await generateTicketPdf(archive);
 
-  writeFileSync('./test/output.pdf', pdf);
+  await writeFile('./test/output.pdf', pdf);
 });
 
 test.skip('pollZd should regularly poll for closed tickets (those having SAPIDs; those without are ignored anyways)', async (t) => {
   const { ticket } = await postTicket({});
   const tickets = await pollZd();
 
-  const tick = tickets.find((t) => t.id === ticket.id);
+  const tick = tickets.find((t) => t.is === ticket.id);
   t.assert(tick);
   t.assert(tick?.organization_id !== null);
 });
@@ -102,13 +107,13 @@ test.skip('Unit Test - watchZendesk (this is essentially the run() method)', asy
   const { data: meta } = await oada.get({
     path: `/${MASTERID}/bookmarks/trellisfw/documents/tickets/${trellisname}/_meta/vdoc/pdfs`,
   });
-  t.is(resp!.id, ticket.id);
-  t.is(Object.keys(meta || {}).length, 2);
+  t.is(resp.id, ticket.id);
+  t.is(Object.keys(meta ?? {}).length, 2);
   t.is(resp._type, 'application/vnd.zendesk.ticket.1+json');
 });
 
 /*
-test.only('Should create a folder for each ticket', async (t) => {
+Test.only('Should create a folder for each ticket', async (t) => {
 
 });
 
@@ -194,7 +199,7 @@ async function postTicket({
       ticket: {
         comment: {
           body: 'Here is the attachment',
-          uploads: ['gvHKUYycZZygimOGNrd4G6ctF'], //TODO: These expire.
+          uploads: ['gvHKUYycZZygimOGNrd4G6ctF'], // TODO: These expire.
         },
       },
     },
@@ -203,7 +208,7 @@ async function postTicket({
   return ticket;
 }
 /*
-async function postUpload() {
+Async function postUpload() {
   return (await axios.post({
     method: 'post',
     url: `${ZD_DOMAIN}/api/v2/uploads.json`,
@@ -219,7 +224,7 @@ async function postUpload() {
 
 const organization = {
   url: 'https://smithfielddocs1675786857.zendesk.com/api/v2/organizations/12909020494349.json',
-  id: 12909020494349,
+  id: 12_909_020_494_349,
   name: 'Centricity',
   shared_tickets: false,
   shared_comments: false,

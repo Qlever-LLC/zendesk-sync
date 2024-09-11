@@ -1,0 +1,8 @@
+dist
+.svelte-kit
+.test
+coverage
+.pnp.*
+.yarn
+*.config.cjs
+*.config.js

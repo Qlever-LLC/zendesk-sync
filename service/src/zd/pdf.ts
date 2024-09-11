@@ -15,15 +15,17 @@
  * limitations under the License.
  */
 
-import type { TicketArchive } from '../types.js';
 import { access } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { createServer } from 'node:http';
-import { doCredentialedApiRequest } from './zendesk.js';
-import { launch } from 'puppeteer';
-import { makeLoggers } from '../logger.js';
 import path from 'node:path';
+
+import { launch } from 'puppeteer';
 import pTimeout from 'p-timeout';
+
+import type { TicketArchive } from '../types.js';
+import { doCredentialedApiRequest } from './zendesk.js';
+import { makeLoggers } from '../logger.js';
 
 const log = makeLoggers('pdf');
 
@@ -88,7 +90,7 @@ const address = new Promise<string>((resolve, reject) => {
   });
 });
 
-// Lauch embedded Chrome, load template, serve archive JSON, save result as ticket PDF
+// Launch embedded Chrome, load template, serve archive JSON, save result as ticket PDF
 export async function generateTicketPdf(
   archive: TicketArchive,
 ): Promise<Uint8Array> {
@@ -98,7 +100,7 @@ export async function generateTicketPdf(
   let browser = await launch({
     headless: true,
     pipe: true,
-    // executablePath: 'google-chrome-stable',
+    // ExecutablePath: 'google-chrome-stable',
     args: [
       '--disable-extensions',
       '--no-sandbox',
@@ -125,7 +127,7 @@ export async function generateTicketPdf(
         browser = await launch({
           headless: true,
           pipe: true,
-          // executablePath: 'google-chrome-stable',
+          // ExecutablePath: 'google-chrome-stable',
           args: [
             '--disable-extensions',
             '--no-sandbox',
@@ -149,7 +151,7 @@ export async function generateTicketPdf(
     throw error;
   }
 
-  log.trace({ ticketId: archive.ticket.id }, `Have new page: ${page}`);
+  log.trace({ ticketId: archive.ticket.id, page }, 'Have new page');
 
   page
     .on('load', log.trace)

@@ -1,4 +1,6 @@
 dist
+dist-template
+.svelte-kit
 bundle.*
 .test
 coverage

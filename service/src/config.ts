@@ -35,7 +35,7 @@ export const { config } = await libConfig({
         arg: 'service-poller-rate',
       },
       'force-age': {
-        doc: 'The age (in seconds) when a ticket is forced archived under the default organiation',
+        doc: 'The age (in seconds) when a ticket is forced archived under the default organization',
         format: Number,
         default: 27 * 24 * 60 * 60,
         env: 'SERVICE_POLLER_FORCE_ARCHIVE_AGE',
@@ -183,7 +183,7 @@ export const { config } = await libConfig({
       },
     },
     default_org: {
-      doc: 'Zendesk Organziation ID to use when no organziation was cataloged',
+      doc: 'Zendesk Organization ID to use when no organization was cataloged',
       default: -1,
       format: Number,
       env: 'ZD_DEFAULT_ORG_ID',

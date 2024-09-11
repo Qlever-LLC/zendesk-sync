@@ -14,10 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { type ArchiveConfig, type EnsureResult, isCloser } from '../types.js';
-import { DOCS_LIST, tpDocTypesTree } from '../tree.js';
+
+import { config } from '../config.js';
+
+import md5 from 'md5';
+
 import { type Job, type Json, postJob } from '@oada/jobs';
 import type { JsonObject, OADAClient } from '@oada/client';
+import type { WorkerContext } from '@oada/jobs/dist/Service.js';
+import { doJob } from '@oada/client/jobs';
+
+import { type ArchiveConfig, type EnsureResult, isCloser } from '../types.js';
 import {
   doCredentialedApiRequest,
   getTicketArchive,
@@ -25,13 +32,10 @@ import {
   setTicketStatus,
   setTrellisState,
 } from '../zd/zendesk.js';
-import type { WorkerContext } from '@oada/jobs/dist/Service.js';
-import { config } from '../config.js';
-import { doJob } from '@oada/client/jobs';
+import { DOCS_LIST } from '../tree.js';
 import { generateTicketPdf } from '../zd/pdf.js';
 import { makeLfCloserJob } from './lfCloser.js';
 import { makeLoggers } from '../logger.js';
-import md5 from 'md5';
 
 const log = makeLoggers('service:archiveTicket');
 
@@ -200,21 +204,23 @@ export async function archiveTicketService(
   }
 
   // Side ticket attachments
-  for await (const sideConvoArchive of ticketArchive.sideConversations) {
+  for await (const sideConversationArchive of ticketArchive.sideConversations) {
     log.debug(
       {
         ticketId,
         trellisId,
-        sideConversations: sideConvoArchive.sideConversation.id,
+        sideConversations: sideConversationArchive.sideConversation.id,
       },
       `Processing side conversation`,
     );
-    for await (const attach of Object.values(sideConvoArchive.attachments)) {
+    for await (const attach of Object.values(
+      sideConversationArchive.attachments,
+    )) {
       log.trace(
         {
           ticketId,
           trellisId,
-          sideConversations: sideConvoArchive.sideConversation.id,
+          sideConversations: sideConversationArchive.sideConversation.id,
           attachmentId: attach.id,
         },
         'Putting attachment',
@@ -275,7 +281,7 @@ export async function archiveTicketService(
       },
     },
     // FIXME: Reable tree after tree put fixed
-    //tree: tpDocTypesTree,
+    // tree: tpDocTypesTree,
   });
 
   log.debug({ ticketId }, 'Updating Zendesk ticket Trellis state/status');

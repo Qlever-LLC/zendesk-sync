@@ -14,10 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* eslint-disable no-console */
+
+/* eslint-disable no-console, no-process-exit, unicorn/no-process-exit -- CLI script */
+
 import { config } from '../config.js';
+
 import { connect } from '@oada/client';
 import { doJob } from '@oada/client/jobs';
+
 import { getTicket } from '../zd/zendesk.js';
 
 async function* ticketCounter() {
@@ -56,7 +60,7 @@ for await (const id of ticketCounter()) {
 
       process.exit();
     }
-  } catch (_err) {
+  } catch {
     console.log(`=== Not a ticket: ${id}`);
   }
 }

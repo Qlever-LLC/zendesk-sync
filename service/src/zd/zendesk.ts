@@ -14,8 +14,11 @@
  * See the License for the specific language governing permissions and
  o * limitations under the License.
  */
-import axiosLibrary from 'axios';
+
 import { config } from '../config.js';
+
+import { buildMemoryStorage, setupCache } from 'axios-cache-interceptor';
+import axiosLibrary from 'axios';
 import pThrottle from 'p-throttle';
 
 import type {
@@ -31,8 +34,8 @@ import type {
   TicketArchive,
   User,
 } from '../types.js';
-import { buildMemoryStorage, setupCache } from 'axios-cache-interceptor';
 import { makeLoggers } from '../logger.js';
+
 const { username, password, domain } = config.get('zendesk');
 
 const log = makeLoggers('zendesk');
@@ -69,10 +72,12 @@ export async function searchTickets(query: string): Promise<Ticket[]> {
   const tickets = (r.data as SearchResponse).results;
 
   while (r.data.next_page) {
+    const url = `${r.data.next_page}`;
+    // eslint-disable-next-line no-await-in-loop
     r = await throttle(async () =>
       axios({
         method: 'get',
-        url: r.data.next_page as unknown as string,
+        url,
         auth: {
           username,
           password,
@@ -86,7 +91,7 @@ export async function searchTickets(query: string): Promise<Ticket[]> {
   return tickets;
 }
 
-// Returns a ticket archive including the ticket JSON, metadata, and assoicated binary resources
+// Returns a ticket archive including the ticket JSON, metadata, and associated binary resources
 export async function getTicketArchive(
   ticketId: number,
 ): Promise<TicketArchive> {
@@ -95,14 +100,14 @@ export async function getTicketArchive(
   // Fetch the ticket JSON
   const ticket = await getTicket(ticketId);
 
-  // Fetch orgs assoicated with ticke
+  // Fetch orgs associated with ticket
   const orgs = await getTicketOrgs(ticket);
 
   // Fetch the customer org
-  const custOrgId = getCustomerOrgId(ticket);
+  const customerOrgId = getCustomerOrgId(ticket);
   const org =
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-    (custOrgId && orgs[custOrgId]) ||
+    (customerOrgId && orgs[customerOrgId]) ||
     (await getOrg(ticket, config.get('zendesk.default_org')));
 
   // Fetch ticket comments
@@ -147,8 +152,8 @@ export async function getTicketArchive(
   // Fetch attachment binary
   const sideConversations = await getSideConversations(ticket);
   const sideConversationsArchive = await Promise.all(
-    sideConversations.map(async (convo) =>
-      getSideConversationArchive(ticket, convo),
+    sideConversations.map(async (conversation) =>
+      getSideConversationArchive(ticket, conversation),
     ),
   );
 
@@ -204,7 +209,7 @@ export async function doCredentialedApiRequest(
 export async function getTicket(id: number | string): Promise<Ticket> {
   log.trace({ ticketId: id }, `Fetching ticket.`);
 
-  let r = await throttle(
+  const r = await throttle(
     async () =>
       axios({
         method: 'get',
@@ -253,10 +258,12 @@ export async function getTicketComments(ticket: Ticket): Promise<Comment[]> {
   const { comments } = r.data as CommentsResponse;
 
   while (r.data.next_page) {
+    const url = `${r.data.next_page}`;
+    // eslint-disable-next-line no-await-in-loop
     r = await throttle(async () =>
       axios({
         method: 'get',
-        url: r.data.next_page as unknown as string,
+        url,
         auth: {
           username,
           password,
@@ -270,7 +277,7 @@ export async function getTicketComments(ticket: Ticket): Promise<Comment[]> {
   return comments;
 }
 
-// Returns an array of all side conversations assoicated with a ticket id
+// Returns an array of all side conversations associated with a ticket id
 export async function getSideConversations(
   ticket: Ticket,
 ): Promise<SideConversation[]> {
@@ -287,13 +294,16 @@ export async function getSideConversations(
     }),
   )();
 
-  const sideConvos = (r.data as SideConversationsResponse).side_conversations;
+  const sideConversations = (r.data as SideConversationsResponse)
+    .side_conversations;
 
   while (r.data.next_page) {
+    const url = `${r.data.next_page}`;
+    // eslint-disable-next-line no-await-in-loop
     r = await throttle(async () =>
       axios({
         method: 'get',
-        url: r.data.next_page as unknown as string,
+        url,
         auth: {
           username,
           password,
@@ -301,20 +311,20 @@ export async function getSideConversations(
       }),
     )();
 
-    sideConvos.push(
+    sideConversations.push(
       ...(r.data as SideConversationsResponse).side_conversations,
     );
   }
 
-  return sideConvos;
+  return sideConversations;
 }
 
 export async function getSideConversationArchive(
   ticket: Ticket,
-  sideConvo: SideConversation,
+  sideConversation: SideConversation,
 ): Promise<SideConversationArchive> {
   // Fetch events
-  const events = await getSideConversationEvents(sideConvo);
+  const events = await getSideConversationEvents(sideConversation);
 
   // Collect all ticket attachments
   const attachments = indexById(
@@ -329,11 +339,11 @@ export async function getSideConversationArchive(
   // Fetch users
   const users = await getUsers(
     ticket,
-    sideConvo.participants.map((p) => p.user_id),
+    sideConversation.participants.map((p) => p.user_id),
   );
 
   const archive: SideConversationArchive = {
-    sideConversation: sideConvo,
+    sideConversation,
     events,
     attachments,
     users,
@@ -344,18 +354,18 @@ export async function getSideConversationArchive(
 
 // Fetch the events of a side conversation from Zendesk
 export async function getSideConversationEvents(
-  sideConvo: SideConversation,
+  sideConversation: SideConversation,
 ): Promise<SideConversationEvent[]> {
   log.trace(
-    { ticketId: sideConvo.ticket_id },
-    `Fetching side conversations ${sideConvo.id} events`,
+    { ticketId: sideConversation.ticket_id },
+    `Fetching side conversations ${sideConversation.id} events`,
   );
 
   // Fetch side converstation events
   let r = await throttle(async () =>
     axios({
       method: 'get',
-      url: `${domain}/api/v2/tickets/${sideConvo.ticket_id}/side_conversations/${sideConvo.id}/events`,
+      url: `${domain}/api/v2/tickets/${sideConversation.ticket_id}/side_conversations/${sideConversation.id}/events`,
       auth: {
         username,
         password,
@@ -363,13 +373,15 @@ export async function getSideConversationEvents(
     }),
   )();
 
-  const events = (r.data as SideConversationEventsResponse).events;
+  const { events } = r.data as SideConversationEventsResponse;
 
   while (r.data.next_page) {
+    const url = `${r.data.next_page}`;
+    // eslint-disable-next-line no-await-in-loop
     r = await throttle(async () =>
       axios({
         method: 'get',
-        url: r.data.next_page as unknown as string,
+        url,
         auth: {
           username,
           password,
@@ -416,10 +428,12 @@ export async function getOrgs(
   const { organizations } = r.data;
 
   while (r.data.next_page) {
+    const url = `${r.data.next_page}`;
+    // eslint-disable-next-line no-await-in-loop
     r = await throttle(async () =>
       axios({
         method: 'get',
-        url: r.data.next_page as unknown as string,
+        url,
         auth: {
           username,
           password,
@@ -476,10 +490,12 @@ export async function getUsers(
   const { users } = r.data;
 
   while (r.data.next_page) {
+    const url = `${r.data.next_page}`;
+    // eslint-disable-next-line no-await-in-loop
     r = await throttle(async () =>
       axios({
         method: 'get',
-        url: r.data.next_page as unknown as string,
+        url,
         auth: {
           username,
           password,
@@ -514,10 +530,12 @@ export async function getGroups(
   const { groups } = r.data;
 
   while (r.data.next_page) {
+    const url = `${r.data.next_page}`;
+    // eslint-disable-next-line no-await-in-loop
     r = await throttle(async () =>
       axios({
         method: 'get',
-        url: r.data.next_page as unknown as string,
+        url,
         auth: {
           username,
           password,
@@ -552,10 +570,12 @@ export async function getFields(
   const { ticket_fields: ticketFields } = r.data;
 
   while (r.data.next_page) {
+    const url = `${r.data.next_page}`;
+    // eslint-disable-next-line no-await-in-loop
     r = await throttle(async () =>
       axios({
         method: 'get',
-        url: r.data.next_page as unknown as string,
+        url,
         auth: {
           username,
           password,
@@ -597,13 +617,14 @@ export async function setCustomField(
 
 export async function setTrellisState(ticket: Ticket, state: TrellisState) {
   if (ticket.status === 'closed') {
-    return log.warn(
+    log.warn(
       { ticketId: ticket.id },
       'Can not update a closed ticket. Skipping setting Trellis state.',
     );
+    return;
   }
 
-  let updates = [
+  const updates = [
     {
       id: config.get('zendesk.fields.state'),
       value: state.state,
@@ -624,10 +645,11 @@ export async function setTicketStatus(ticket: Ticket, status: string) {
   log.trace({ ticketId: ticket.id }, `Marking ticket as ${status}`);
 
   if (ticket.status === 'closed') {
-    return log.warn(
+    log.warn(
       { ticketId: ticket.id },
       'Can not update a closed ticket. Skipping status change.',
     );
+    return;
   }
 
   await axios({
