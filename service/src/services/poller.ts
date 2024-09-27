@@ -25,7 +25,6 @@ import { type Ticket, isCloser } from '../types.js';
 import {
   type TrellisState,
   getCustomerOrgId,
-  getOrg,
   getTicket,
   getTicketFieldValue,
   searchTickets,
@@ -40,7 +39,7 @@ let pollRunning = false;
 
 export function pollerService(oada: OADAClient): CronJob {
   const cron = CronJob.from({
-    cronTime: `*/${config.get('service.poller.poll-rate')} * * * * *`,
+    cronTime: `*/${config.get('service.poller.pollRate')} * * * * *`,
     start: true,
     runOnInit: true,
     async onTick() {
@@ -116,8 +115,11 @@ async function computeNextState(ticket: Ticket): Promise<TrellisState> {
   const currentState =
     getTicketFieldValue(ticket, config.get('zendesk.fields.state')) ?? '';
 
-  if (currentState !== '' && currentState !== 'trellis-pending') {
-    log.warn({ ticketId }, 'Poller found a ticket not yet at trellis-pending?');
+  if (currentState !== '' && currentState !== STATE_PENDING) {
+    log.warn(
+      { ticketId },
+      `Poller found a ticket not yet at ${STATE_PENDING}?`,
+    );
 
     return { state: currentState, status: undefined };
   }
@@ -125,11 +127,13 @@ async function computeNextState(ticket: Ticket): Promise<TrellisState> {
   // **Should** always have a customer ID if ZenDesk is configured correctly (i.e., a trigger that requires it to "solve")
   const customerId = getCustomerOrgId(ticket);
   if (!customerId) {
-    log.warn({ ticketId }, 'No customer organization associated. Logic error!');
+    log.error(
+      { ticketId },
+      'No customer organization associated. Logic error!',
+    );
     return {
-      state: 'trellis-hold',
-      status:
-        'Ticket has tag tag:trellis-pending, but does not have an assigned customer. ZenDesk misconfigured?',
+      state: STATE_HOLD,
+      status: 'Ticket solved without assigned customer.',
     };
   }
 
@@ -166,7 +170,7 @@ async function computeNextState(ticket: Ticket): Promise<TrellisState> {
   );
 
   return {
-    state: 'trellis-processing',
-    status: `Forced archive due to age (> ${(config.get('service.poller.force-age') / (24 * 60 * 60)).toFixed(1)} days old)`,
+    state: STATE_PROCESSING,
+    status: `Creating archive package.`,
   };
 }

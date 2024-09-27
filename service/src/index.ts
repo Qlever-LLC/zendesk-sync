@@ -52,7 +52,7 @@ const { token, domain } = config.get('oada');
 export async function run() {
   let oada;
   let service;
-  let poller;
+  // let poller;
 
   try {
     log.info({}, 'Connecting to Trellis');
@@ -72,25 +72,21 @@ export async function run() {
       archiveTicketService,
     );
 
-    log.info({}, 'Initialize `lfCloser` service');
-    service.on(
-      config.get('service.lfCloser.name'),
-      config.get('service.lfCloser.timeout'),
-      lfCloserService,
-    );
-
     log.info({}, 'Start @oada/jobs based services');
     await service.start();
 
     log.info({}, 'Start polling ZenDesk polling service');
-    poller = pollerService(oada);
+    // FIXME: Uncomment
+    // poller = pollerService(oada);
     //
   } catch (error) {
     log.fatal({ error }, `Failed to start service: ${error}`);
     // Try to stop poller, if needed
+    /*
     if (poller) {
       poller.stop();
     }
+    */
 
     // Try to stop @oada/jobs services, if needed
     if (service) {

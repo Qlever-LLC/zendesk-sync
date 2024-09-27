@@ -15,7 +15,13 @@
  * limitations under the License.
  */
 
-// archiveTicket Service
+// State machine
+export const STATE_PROCESSING = 'trellis-processing';
+export const STATE_PENDING = 'trellis-pending';
+export const STATE_HOLD = 'trellis-hold';
+export const STATE_ARCHIVED = 'trellis-archived';
+
+// ArchiveTicket Service
 export type Closer = 'none' | 'immediate' | 'laserfiche';
 export interface ArchiveConfig {
   ticketId: number;

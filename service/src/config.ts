@@ -27,7 +27,7 @@ export const { config } = await libConfig({
   },
   service: {
     poller: {
-      'poll-rate': {
+      pollRate: {
         doc: 'Polling rate in seconds',
         format: Number,
         default: 180,
@@ -41,7 +41,7 @@ export const { config } = await libConfig({
         env: 'SERVICE_POLLER_FORCE_ARCHIVE_AGE',
         arg: 'service-poller-force-archive-age',
       },
-      'closer': {
+      closer: {
         doc: 'The closer to use when processing tickets.',
         format: String,
         default: 'none',
@@ -63,23 +63,8 @@ export const { config } = await libConfig({
         env: 'SERVICE_ARCHIVE_TIMEOUT',
         arg: 'service-archive-timeout',
       },
-    },
-    lfCloser: {
-      name: {
-        doc: 'Service name of Laserfiche closer service',
-        default: 'lfCloser',
-        env: 'SERVICE_LFCLOSER_NAME',
-        arg: 'service-lfcloser-name',
-      },
-      timeout: {
-        doc: 'Time limit on waiting for lf-sync to file ticket',
-        format: Number,
-        default: 7 * 24 * 60 * 60 * 1000,
-        env: 'SERVICE_LFCLOSER_TIMEOUT',
-        arg: 'service-lfcloser-timeout',
-      },
       pathFieldId: {
-        doc: 'Zendesk custom field ID for"Laserfiche Path"',
+        doc: 'Zendesk custom field ID for "Laserfiche Path"',
         format: Number,
         default: -1,
         env: 'SERVICE_LFCLOSER_PATH_FIELD_ID',

@@ -29,26 +29,36 @@ import {
   doCredentialedApiRequest,
   getTicketArchive,
   getTicketFieldValue,
+  setCustomField,
   setTicketStatus,
   setTrellisState,
 } from '../zd/zendesk.js';
 import { DOCS_LIST } from '../tree.js';
 import { generateTicketPdf } from '../zd/pdf.js';
-import { makeLfCloserJob } from './lfCloser.js';
 import { makeLoggers } from '../logger.js';
 
 const log = makeLoggers('service:archiveTicket');
+const JOB_TYPE = config.get('service.archiveTicket.name');
+const PATH_FIELD_ID = config.get('service.archiveTicket.pathFieldId');
+const LF_ID_FIELD_ID = config.get('service.archiveTicket.lfIdFieldId');
 
-export async function makeArchiveTicketJob(
-  oada: OADAClient,
-  jobConfig: ArchiveConfig,
-) {
-  await postJob(oada, `/bookmarks/services/zendesk-sync/jobs/pending`, {
-    service: 'zendesk-sync',
-    type: config.get('service.archiveTicket.name'),
-    config: jobConfig as unknown as Json,
-  });
+interface LFSyncDocJob extends JobSchema {
+  service: 'lf-sync';
+  type: 'sync-doc';
+  config: {
+    doc: { _id: string };
+    tradingPartner: string;
+  };
 }
+
+type LFSyncDocJobResult = Record<
+  string,
+  {
+    LaserficheEntryID: number;
+    Path: string;
+    Name: string;
+  }
+>;
 
 // Sync a ticket to trellis, triggering lf-sync over to LF.
 export async function archiveTicketService(
@@ -58,92 +68,23 @@ export async function archiveTicketService(
   const jobConfig = job.config as unknown as ArchiveConfig;
 
   const { ticketId } = jobConfig;
-  log.info(
-    { ticketId },
-    `Starting ${config.get('service.archiveTicket.name')} job`,
-  );
+  log.info({ ticketId }, `Starting ${JOB_TYPE} job`);
 
-  log.debug({}, 'Generating ticket archive');
+  log.debug({ ticketId }, 'Generating ticket archive');
   const ticketArchive = await getTicketArchive(ticketId);
 
-  const currentState = getTicketFieldValue(
-    ticketArchive.ticket,
-    config.get('zendesk.fields.state'),
-  );
-
-  // Logical check on service's joint state machine
-  if (
-    currentState !== undefined &&
-    currentState !== '' &&
-    currentState !== 'trellis-pending' &&
-    currentState !== 'trellis-processing'
-  ) {
-    log.warn({ ticketId }, 'Trying to archive already archived ticket?');
-    throw new Error('Ticket already archived!');
+  if (getState(ticketArchive.ticket) === STATE_ARCHIVED) {
+    log.warn({ ticketId }, 'Re-processing an archived ticket.');
   }
 
-  log.debug({}, 'Creating ticket pdf');
+  log.debug({ ticketId }, 'Generating ticket pdf');
   const ticketPdf = await generateTicketPdf(ticketArchive);
-  log.trace({}, 'Done ticket pdf');
-
-  const sapFieldId = config.get('zendesk.fields.SAPId');
-  const sapField = ticketArchive.org?.organization_fields?.[sapFieldId];
-  const sapids = sapField ? sapField.split(',').map((id) => `sap:${id}`) : [];
-  const zid = `zendesk:${ticketArchive.org.id}`;
 
   log.debug({ ticketId }, 'Resolve trading partner with trellis-data-manager');
-  const { result } = (await doJob(context.oada, {
-    service: 'trellis-data-manager',
-    type: 'trading-partners-ensure',
-    config: {
-      element: {
-        name: ticketArchive.org.name,
-        externalIds: [zid],
-      },
-    },
-  })) as unknown as { result: EnsureResult };
+  const tp = await lookupTradingPartner(context.oada, ticketArchive);
 
-  const tp = result.entry ?? result.matches?.[0]?.item;
-  if (!tp) {
-    throw new Error(
-      `Ticket ${ticketId} has no trading partner (ZD Org: ${ticketArchive.org.name})`,
-    );
-  }
-
-  log.trace(
-    { ticketId, masterid: tp.masterid },
-    'Trading partner lookup finished.',
-  );
-
-  // Upsert a Trellis TP to hold this ticket
-  if (
-    sapids.some((sapid) => !tp.externalIds.includes(sapid)) ||
-    tp.name !== ticketArchive.org.name
-  ) {
-    log.trace(
-      { tp, ticketId },
-      'Upserting trading partner with ZD sourced data.',
-    );
-
-    await doJob(context.oada, {
-      service: 'trellis-data-manager',
-      type: 'trading-partners-update',
-      config: {
-        element: {
-          masterid: tp.masterid,
-          name: ticketArchive.org.name,
-          externalIds: [zid, ...sapids],
-        },
-      },
-    });
-
-    log.trace({ tp, ticketId }, 'Trading partner upsert done.');
-  }
-
-  log.debug({ ticketId }, 'Creating ticket resource');
-
-  // Sync the pdf to Trellis
-  const trellisname = `zendesk-ticket-${ticketId}`;
+  log.debug({ ticketId }, 'Syncing ticket to Trellis');
+  const trellisName = `zendesk-ticket-${ticketId}`;
   const { headers } = await context.oada.post({
     path: `/resources`,
     data: ticketArchive as unknown as JsonObject,
@@ -151,9 +92,8 @@ export async function archiveTicketService(
   });
   const trellisId = headers['content-location']!.replace(/^\//, '');
 
-  log.trace({ ticketId, trellisId }, 'Created ticket resource');
-
   // Mark resource is shared to customer. Make's LF show as "shared from"
+  log.debug({ ticketId, trellisId }, 'Mark archive as outgoing share.');
   await context.oada.put({
     path: `/${trellisId}/_meta`,
     data: {
@@ -161,27 +101,25 @@ export async function archiveTicketService(
     },
   });
 
-  log.debug({ ticketId, trellisId }, 'Putting ticket pdf');
+  log.debug({ ticketId, trellisId }, 'Uploading ticket pdf');
   await context.oada.put({
-    path: `/${trellisId}/_meta/vdoc/pdf/zendesk-ticket-${ticketId}`,
+    path: `/${trellisId}/_meta/vdoc/pdf/${trellisName}`,
     data: ticketPdf,
     headers: { 'x-oada-ensure-link': 'unversioned' },
     contentType: 'application/pdf',
   });
 
-  log.trace({ ticketId, trellisId }, 'Putting ticket pdf filename');
+  log.trace({ ticketId, trellisId }, 'Set ticket pdf filename');
   await context.oada.put({
-    path: `/${trellisId}/_meta/vdoc/pdf/zendesk-ticket-${ticketId}/_meta`,
-    data: { filename: `Ticket-${ticketId}.pdf` },
+    path: `/${trellisId}/_meta/vdoc/pdf/${trellisName}/_meta`,
+    data: { filename: `Ticket${ticketId}.pdf` },
   });
 
   // Main ticket attachments
-  log.debug({ ticketId, trellisId }, 'Uploading attachments to Trellis');
-  for await (const attach of Object.values(ticketArchive.attachments)) {
-    log.trace(
-      { ticketId, trellisId, attachmentId: attach.id },
-      'Putting attachment',
-    );
+  for await (const [index, comment] of ticketArchive.comments.entries()) {
+    for await (const attach of comment.attachments) {
+      const attachmentId = attach.id;
+      const filename = `[Ticket${ticketId}][Comment${index}]${attach.file_name}`;
 
     const buff = await doCredentialedApiRequest(
       ticketArchive.ticket,
@@ -225,27 +163,75 @@ export async function archiveTicketService(
         },
         'Putting attachment',
       );
-
       const buff = await doCredentialedApiRequest(
         ticketArchive.ticket,
         attach.content_url,
       );
-      const hash = md5(buff.toString());
-      // Blindly delete the fixed asset path to avoid a 422 bug in OADA if this attachment has been processed before
-      await context.oada.delete({
-        path: `/${trellisId}/_meta/vdoc/pdf/${hash}`,
-      });
+
+      log.debug(
+        { ticketId, trellisId, attachmentId, filename },
+        'Uploading attachment',
+      );
       await context.oada.put({
-        path: `/${trellisId}/_meta/vdoc/pdf/${hash}`,
+        path: `/${trellisId}/_meta/vdoc/pdf/attach_${attachmentId}`,
         data: buff,
         headers: { 'x-oada-ensure-link': 'unversioned' },
         contentType: attach.content_type,
       });
 
+      log.trace(
+        { ticketId, trellisId, attachmentId, filename },
+        `Set attachment name`,
+      );
       await context.oada.put({
-        path: `/${trellisId}/_meta/vdoc/pdf/${hash}/_meta`,
-        data: { filename: attach.file_name },
+        path: `/${trellisId}/_meta/vdoc/pdf/attach_${attachmentId}/_meta`,
+        data: { filename },
       });
+    }
+  }
+
+  // Side ticket attachments
+  for await (const [
+    scIndex,
+    sideConversation,
+  ] of ticketArchive.sideConversations.entries()) {
+    const sideConversationId = sideConversation.sideConversation.id;
+    for await (const [eventIndex, event] of sideConversation.events.entries()) {
+      if (event.message) {
+        for await (const attach of event.message.attachments) {
+          const attachmentId = attach.id;
+          const filename = `[Ticket${ticketId}][SideConversation${scIndex}][Comment${eventIndex}]${attach.file_name}`;
+
+          log.debug(
+            { ticketId, trellisId, sideConversationId, attachmentId, filename },
+            `Fetching attachment from ZenDesk`,
+          );
+          const buff = await doCredentialedApiRequest(
+            ticketArchive.ticket,
+            attach.content_url,
+          );
+
+          log.debug(
+            { ticketId, trellisId, sideConversationId, attachmentId, filename },
+            'Uploading attachment',
+          );
+          await context.oada.put({
+            path: `/${trellisId}/_meta/vdoc/pdf/sideConv_${sideConversationId}_attach_${attachmentId}`,
+            data: buff,
+            headers: { 'x-oada-ensure-link': 'unversioned' },
+            contentType: attach.content_type,
+          });
+
+          log.trace(
+            { ticketId, trellisId, sideConversationId, attachmentId, filename },
+            `Set attachment name`,
+          );
+          await context.oada.put({
+            path: `/${trellisId}/_meta/vdoc/pdf/sideConv_${sideConversationId}_attach_${attachmentId}/_meta`,
+            data: { filename },
+          });
+        }
+      }
     }
   }
 
@@ -275,7 +261,7 @@ export async function archiveTicketService(
   await context.oada.put({
     path: `/${tp.masterid}${DOCS_LIST}/tickets`,
     data: {
-      [trellisname]: {
+      [trellisName]: {
         _id: trellisId,
         _rev: 0,
       },
@@ -287,52 +273,86 @@ export async function archiveTicketService(
   log.debug({ ticketId }, 'Updating Zendesk ticket Trellis state/status');
   // Update state on Zendesk ticket
   await setTrellisState(ticketArchive.ticket, {
-    state: 'trellis-archived',
+    state: STATE_ARCHIVED,
     status: context.jobId,
   });
 
-  // Setup closer
-  switch (isCloser(jobConfig.closer)) {
-    // Close right away, don't wait for something else in Trellis to happen
-    case 'immediate': {
-      log.info({ ticketId }, `Immediate closer requested. Closing ticket now.`);
+  log.info({ ticketId }, 'Await Laserfiche sync job');
 
-      if (config.get('mode') === 'production') {
-        await setTicketStatus(ticketArchive.ticket, 'closed');
-      } else {
-        log.debug({ ticketId }, `Testing mode, don't actually closing ticket.`);
-      }
+  log.debug({ ticketId }, 'Creating get-lf-entry job to learn LF state');
+  const syncJob: LFSyncDocJob = {
+    service: 'lf-sync',
+    type: 'sync-doc',
+    config: {
+      doc: { _id: trellisId },
+      tradingPartner: tp.masterid,
+    },
+  };
 
-      break;
+  const sync = await doJob(context.oada, syncJob);
+  const entities = sync.result as unknown as LFSyncDocJobResult;
+
+  // Find ticket PDF vDoc
+  const ticketEntryKey = Object.keys(entities).find((k) =>
+    entities[k]?.Name.match(/^Ticket\d+.pdf$/),
+  );
+
+  if (!ticketEntryKey) {
+    log.error({ ticketId }, 'Can not find ticket pdf in LF after upload');
+    throw new Error('No ticket PDF vDoc in Ticket Trellis resource?');
+  }
+
+  const lfId = entities[ticketEntryKey]?.LaserficheEntryID;
+  if (!lfId) {
+    log.error({ ticketId }, 'No Laserfiche ID for ticket PDF?');
+    throw new Error('Could not determine Laserfiche ID for ticket PDF?');
+  }
+
+  const path = entities[ticketEntryKey]?.Path.split('\\')
+    .slice(0, -1)
+    .join('\\');
+  if (!path) {
+    log.error({ ticketId }, 'No Laserfiche path for ticket PDF?');
+    throw new Error('Could not determine Laserfiche path for ticket folder?');
+  }
+
+  log.info({ ticketId }, 'Ticket is in LF. Update Zendesk state and status');
+  await setTrellisState(ticketArchive.ticket, {
+    state: STATE_ARCHIVED,
+    status: undefined,
+  });
+
+  if (ticketArchive.ticket.status !== 'closed') {
+    if (PATH_FIELD_ID > 0) {
+      log.debug({ ticketId }, 'Add LF path meta data back to Zendesk');
+      await setCustomField(ticketArchive.ticket, [
+        { id: PATH_FIELD_ID, value: path },
+      ]);
     }
 
-    // Wait for laserfiche to properly file the archive away before closing ZenDesk ticket
-    case 'laserfiche': {
-      log.info(
-        { ticketId },
-        `Laserfiche closer requested. Creating lsCloser job.`,
-      );
-
-      await makeLfCloserJob(context.oada, { ticketId, doc: trellisId });
-
-      break;
+    if (LF_ID_FIELD_ID > 0) {
+      log.debug({ ticketId }, 'Add LF ID meta data back to Zendesk');
+      await setCustomField(ticketArchive.ticket, [
+        { id: LF_ID_FIELD_ID, value: `${lfId}` },
+      ]);
     }
 
-    // Don't try to close the ZenDesk ticket at all
-    case 'none': {
-      log.debug({ ticketId }, `No closer requested.`);
+    log.info({ ticketId }, `Ticket is synced. Closing ticket in ZenDesk.`);
 
-      break;
+    if (config.get('mode') === 'production') {
+      await setTicketStatus(ticketArchive.ticket, 'closed');
+    } else {
+      log.debug({ ticketId }, `Testing mode, don't actually closing ticket.`);
     }
   }
 
   log.info({ ticketId }, 'Ticket successfully archived to Trellis.');
 
   return {
-    state: 'trellis-archived',
+    state: STATE_ARCHIVED,
     trellisId,
     masterId: tp.masterid,
-    location: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisname}`,
+    location: `/${tp.masterid}/bookmarks/trellisfw/documents/tickets/${trellisName}`,
   };
 }
 
