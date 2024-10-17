@@ -17,6 +17,22 @@
 
 import libConfig from '@oada/lib-config';
 
+/*
+AddFormats({
+  archivers: {
+    name: 'archivers',
+    validate: assertIsArchiverArray,
+    coerce(value: unknown) {
+      if (typeof value === 'string') {
+        return value.split(',').map((item) => item.trim());
+      }
+
+      return value;
+    },
+  },
+});
+*/
+
 export const { config } = await libConfig({
   mode: {
     doc: 'Run sync in production mode',
@@ -34,28 +50,22 @@ export const { config } = await libConfig({
         env: 'SERVICE_POLLER_RATE',
         arg: 'service-poller-rate',
       },
-      'force-age': {
-        doc: 'The age (in seconds) when a ticket is forced archived under the default organization',
+      forceAge: {
+        doc: 'The age (in seconds) when a ticket is forced archived under the default organiation',
         format: Number,
         default: 27 * 24 * 60 * 60,
         env: 'SERVICE_POLLER_FORCE_ARCHIVE_AGE',
         arg: 'service-poller-force-archive-age',
       },
-      closer: {
-        doc: 'The closer to use when processing tickets.',
-        format: String,
-        default: 'none',
-        env: 'SERVICE_POLLER_CLOSER',
-        arg: 'service-poller-closer',
+      archivers: {
+        doc: 'The archiver(s) to use when processing tickets.',
+        format: Array,
+        default: [],
+        env: 'SERVICE_POLLER_ARCHIVERS',
+        arg: 'service-poller-archivers',
       },
     },
-    archiveTicket: {
-      name: {
-        doc: 'Service name of ZenDesk archive service',
-        default: 'archiveTicket',
-        env: 'SERVICE_ARCHIVE_NAME',
-        arg: 'service-archive-name',
-      },
+    syncTicket: {
       timeout: {
         doc: 'Time limit for processing a ticket archive',
         format: Number,
@@ -63,19 +73,23 @@ export const { config } = await libConfig({
         env: 'SERVICE_ARCHIVE_TIMEOUT',
         arg: 'service-archive-timeout',
       },
-      pathFieldId: {
-        doc: 'Zendesk custom field ID for "Laserfiche Path"',
-        format: Number,
-        default: -1,
-        env: 'SERVICE_LFCLOSER_PATH_FIELD_ID',
-        arg: 'service-lfcloser-path-field-id',
-      },
-      lfIdFieldId: {
-        doc: 'Zendesk custom field ID for "Laserfiche Entity ID"',
-        format: Number,
-        default: -1,
-        env: 'SERVICE_LFCLOSER_ENTITY_ID_FIELD_ID',
-        arg: 'service-lfcloser-entity-id-field-id',
+    },
+    archivers: {
+      laserfiche: {
+        pathFieldId: {
+          doc: 'Zendesk custom field ID for "Laserfiche Path"',
+          default: -1,
+          format: Number,
+          env: 'SERVICE_LF_PATH_FIELD_ID',
+          arg: 'service-lf-path-field-id',
+        },
+        lfIdFieldId: {
+          doc: 'Zendesk custom field ID for "Laserfiche Entity ID"',
+          default: -1,
+          format: Number,
+          env: 'SERVICE_LF_ENTITY_ID_FIELD_ID',
+          arg: 'service-lf-entity-id-field-id',
+        },
       },
     },
   },
@@ -93,6 +107,7 @@ export const { config } = await libConfig({
       default: 'god',
       env: 'TOKEN',
       arg: 'token',
+      sensitive: true,
     },
   },
   zendesk: {
@@ -103,12 +118,12 @@ export const { config } = await libConfig({
       env: 'SERVICE_ARCHIVE_CONCURRENCY',
       arg: 'service-archive-concurrency',
     },
-    domain: {
-      doc: 'Zendesk API domain',
+    baseURL: {
+      doc: 'Zendesk API base URL',
       format: String,
       default: '',
-      env: 'ZD_DOMAIN',
-      arg: 'zd-domain',
+      env: 'ZD_BASE_URL',
+      arg: 'zd-base-url',
     },
     username: {
       doc: 'Zendesk username email',
@@ -123,6 +138,7 @@ export const { config } = await libConfig({
       default: '',
       env: 'ZD_PASS',
       arg: 'zd-pass',
+      sensitive: true,
     },
     api_limit: {
       doc: 'Zendesk API per interval rate limit',
@@ -141,21 +157,22 @@ export const { config } = await libConfig({
     fields: {
       state: {
         doc: 'Zendesk ID for custom field "Trellis Automation State"',
-        format: Number,
         default: -1,
+        format: Number,
         env: 'ZD_FIELDS_STATE_ID',
         arg: 'zd-fields-state-id',
       },
       status: {
         doc: 'Zendesk ID for custom field "Trellis Automation Status"',
-        format: Number,
         default: -1,
+        format: Number,
         env: 'ZD_FIELDS_STATUS_ID',
         arg: 'zd-fields-status-id',
       },
       SAPId: {
         doc: 'Name of the Zendesk field which stores the trading partner SAP ID',
-        default: -1,
+        format: String,
+        default: '',
         env: 'ZD_FIELDS_SAP_ID',
         arg: 'zd-sap-id',
       },
@@ -168,7 +185,7 @@ export const { config } = await libConfig({
       },
     },
     default_org: {
-      doc: 'Zendesk Organization ID to use when no organization was cataloged',
+      doc: 'Zendesk Organziation ID to use when no organziation was cataloged',
       default: -1,
       format: Number,
       env: 'ZD_DEFAULT_ORG_ID',

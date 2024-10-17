@@ -14,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-/* eslint-disable no-console, no-process-exit, unicorn/no-process-exit -- CLI script */
-
+/* eslint-disable no-process-exit, unicorn/no-process-exit */
 import { config } from '../config.js';
-
 import { connect } from '@oada/client';
 import { doJob } from '@oada/client/jobs';
-
 import { getTicket } from '../zd/zendesk.js';
+import { pino } from '@oada/pino-debug';
+
+const log = pino();
 
 async function* ticketCounter() {
   for (let id = 7070; id <= 10_000; id++) {
@@ -37,32 +36,31 @@ const oada = await connect({
 
 for await (const id of ticketCounter()) {
   try {
-    console.log(`Processing ticket ID: ${id}`);
-    const ticket = await getTicket(id);
+    log.info(`Processing ticket ID: ${id}`);
+    const ticket = await getTicket(log, id);
 
     if (ticket.status !== 'closed') {
-      console.log('Skipping NOT closed ticket.');
+      log.info('Skipping NOT closed ticket.');
       continue;
     }
 
     try {
       await doJob(oada, {
         service: 'zendesk-sync',
-        type: config.get('service.archiveTicket.name'),
+        type: 'syncTicket',
         config: {
           ticketId: ticket.id,
-          closer: 'none',
+          archivers: [],
         },
       });
     } catch (error) {
-      console.log(`=== Error with ticket: ${id}!!`);
-      console.error(error);
+      log.error({ ticketId: id }, `${error}`);
 
       process.exit();
     }
   } catch {
-    console.log(`=== Not a ticket: ${id}`);
+    log.info({ ticketId: id }, 'Not a ticket');
   }
 }
 
-console.log('DONE');
+log.info('DONE');

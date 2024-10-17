@@ -14,30 +14,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import { config } from '../config.js';
-
-import { CronJob } from 'cron';
-
-import type { OADAClient } from '@oada/client';
-
-import { type Ticket, isCloser } from '../types.js';
 import {
-  type TrellisState,
+  STATE_HOLD,
+  STATE_PENDING,
+  STATE_PROCESSING,
+  type Ticket,
+} from '../types.js';
+import {
   getCustomerOrgId,
   getTicket,
   getTicketFieldValue,
   searchTickets,
   setTrellisState,
 } from '../zd/zendesk.js';
-import { makeArchiveTicketJob } from './archiveTicket.js';
-import { makeLoggers } from '../logger.js';
-
-const log = makeLoggers('service:poll');
+import { CronJob } from 'cron';
+import { type Logger } from '@oada/pino-debug';
+import type { OADAClient } from '@oada/client';
+import { type TrellisState } from '../zd/utils.js';
+import { config } from '../config.js';
+import { makeSyncTicketJob } from './syncTicket.js';
 
 let pollRunning = false;
 
-export function pollerService(oada: OADAClient): CronJob {
+export function pollerService(log: Logger, oada: OADAClient): CronJob {
+  log = log.child({ service: 'poller' });
+
   const cron = CronJob.from({
     cronTime: `*/${config.get('service.poller.pollRate')} * * * * *`,
     start: true,
@@ -53,7 +54,7 @@ export function pollerService(oada: OADAClient): CronJob {
       try {
         log.info('Polling ZenDesk for eligible tickets');
 
-        let tickets = await searchTickets('status:solved');
+        let tickets = await searchTickets(log, 'status:solved');
         // Process them in new to old order, where old is likely to still have the same
         // issues that held it up prior
         tickets = tickets.reverse();
@@ -69,9 +70,9 @@ export function pollerService(oada: OADAClient): CronJob {
           //       fresh copy from the API to make the following tests are done
           //       against the current ticket state rather than some old cache
           //       from the search API.
-          const ticket = await getTicket(t.id);
+          const ticket = await getTicket(log, t.id);
 
-          const nextState = await computeNextState(ticket);
+          const nextState = await computeNextState(ticket, log);
           const currentState = getTicketFieldValue(
             ticket,
             config.get('zendesk.fields.state'),
@@ -86,16 +87,16 @@ export function pollerService(oada: OADAClient): CronJob {
             currentState !== nextState.state ||
             currentStatus !== nextState.status
           ) {
-            await setTrellisState(ticket, nextState);
+            await setTrellisState(log, ticket, nextState);
           }
 
           // Make a job to move forward in the state machine
-          if (nextState.state === 'trellis-processing') {
+          if (nextState.state === STATE_PROCESSING) {
             log.info({ ticketId: ticket.id }, 'Creating an archive job');
 
-            await makeArchiveTicketJob(oada, {
+            await makeSyncTicketJob(oada, {
               ticketId: ticket.id,
-              closer: isCloser(config.get('service.poller.closer')),
+              archivers: config.get('service.poller.archivers'),
             });
           }
         }
@@ -110,8 +111,14 @@ export function pollerService(oada: OADAClient): CronJob {
   return cron;
 }
 
-async function computeNextState(ticket: Ticket): Promise<TrellisState> {
+async function computeNextState(
+  ticket: Ticket,
+  log: Logger,
+): Promise<TrellisState> {
   const ticketId = ticket.id;
+
+  log = log.child({ ticketId });
+
   const currentState =
     getTicketFieldValue(ticket, config.get('zendesk.fields.state')) ?? '';
 
@@ -137,40 +144,8 @@ async function computeNextState(ticket: Ticket): Promise<TrellisState> {
     };
   }
 
-  // Get Zendesk's info on that customer
-  const org = await getOrg(ticket, customerId);
-
-  const sapId = org.organization_fields[config.get('zendesk.fields.SAPId')];
-  const age = (Date.now() - new Date(ticket.updated_at).getTime()) / 1000;
-
-  // If we have an SAP ID, then directly archive it
-  if (sapId !== undefined) {
-    log.trace({ ticketId }, 'Archiving ticket with SAPID');
-    return {
-      state: 'trellis-processing',
-      status: `Archiving under ${org.name}, SAPID: ${sapId}`,
-    };
-
-    // If the ticket is found, wait for someone to set the SAP ID on the organization
-  }
-
-  if (age <= config.get('service.poller.force-age')) {
-    log.trace({ ticketId }, 'Skipping young ticket with no SAPID.');
-    return {
-      state: 'trellis-pending',
-      status: `The ticket's organization does not have an SAP ID. Please set one at ${config.get('zendesk.domain')}/agent/organizations/${customerId}`,
-    };
-
-    // The ticket is too old, and will be auto-closed by ZenDesk. Force an archive without an SAP ID.
-  }
-
-  log.trace(
-    { ticketId },
-    `Archive old ticket (> ${(config.get('service.poller.force-age') / (24 * 60 * 60)).toFixed(1)} days old)`,
-  );
-
   return {
     state: STATE_PROCESSING,
-    status: `Creating archive package.`,
+    status: `Creating ticket archive.`,
   };
 }
