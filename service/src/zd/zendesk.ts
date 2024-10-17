@@ -368,12 +368,14 @@ export async function setTrellisState(
     return;
   }
 
-  const updates = [
-    {
+  const updates: Array<{ id: string | number; value: string | number }> = [];
+
+  if (state.state) {
+    updates.push({
       id: config.get('zendesk.fields.state'),
       value: state.state,
-    },
-  ];
+    });
+  }
 
   if (state.status) {
     updates.push({
@@ -382,7 +384,11 @@ export async function setTrellisState(
     });
   }
 
-  await setCustomField(log, ticket, updates);
+  if (updates.length) {
+    await setCustomField(log, ticket, updates);
+  } else {
+    log.debug('No state change to update');
+  }
 }
 
 export async function setTicketStatus(

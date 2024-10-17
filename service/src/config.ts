@@ -82,6 +82,13 @@ export const { config } = await libConfig({
       },
     },
     syncTicket: {
+      enable: {
+        doc: 'Enable the syncTicket service to find new work within Zendesk',
+        format: Boolean,
+        default: true,
+        env: 'SERVICE_SYNC_TICKET_ENABLE',
+        arg: 'service-sync-ticket-enable',
+      },
       timeout: {
         doc: 'Time limit for processing a ticket archive',
         format: Number,

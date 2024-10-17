@@ -39,8 +39,6 @@ export async function callTypedApi<T>(
   key: string,
   cnf?: AxiosRequestConfig,
 ): Promise<T> {
-  log.trace(`Making credentialed API request: ${url}`);
-
   const data = await makeCredentialedGetRequest<Record<string, T>>(
     log,
     url,
@@ -110,9 +108,9 @@ export async function makeCredentialedGetRequest<T>(
     return {
       buffer: r.data,
     } as T;
-  } else {
-    return r.data as T;
   }
+
+  return r.data as T;
 }
 
 export async function makeCredentialedPutRequest(
@@ -152,7 +150,7 @@ export function indexById<T extends { id: number | string }>(
 
 // TYPES
 export interface TrellisState {
-  state: string;
+  state: string | undefined;
   status: string | undefined;
 }
 

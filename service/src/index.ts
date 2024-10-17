@@ -59,12 +59,16 @@ async function run() {
       concurrency: config.get('zendesk.concurrency'),
     });
 
-    log.info('Initialize `archiveTicket` service');
-    service.on(
-      'syncTicket',
-      config.get('service.syncTicket.timeout'),
-      syncTicketService,
-    );
+    if (config.get('service.syncTicket.enable')) {
+      log.info('Initialize `syncTicket` service');
+      service.on(
+        'syncTicket',
+        config.get('service.syncTicket.timeout'),
+        syncTicketService,
+      );
+    } else {
+      log.info('syncTicket service disabled.');
+    }
 
     log.info('Start @oada/jobs based services');
     await service.start();

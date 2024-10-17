@@ -85,8 +85,10 @@ export function pollerService(logOrig: Logger, oada: OADAClient): CronJob {
 
           // Update Zendesk with the new state, but only if changed. Otherwise, Zendesk tickets are flodded with "useless" updates
           if (
-            currentState !== nextState.state ||
-            currentStatus !== nextState.status
+            (nextState.state !== undefined &&
+              currentState !== nextState.state) ||
+            (nextState.status !== undefined &&
+              currentStatus !== nextState.status)
           ) {
             await setTrellisState(log, ticket, nextState);
           }
@@ -119,13 +121,15 @@ async function computeNextState(
   const currentState =
     getTicketFieldValue(ticket, config.get('zendesk.fields.state')) ?? '';
 
+  log.trace({ currentState }, 'Lookup ticket currentState');
+
   if (currentState !== '' && currentState !== STATE_PENDING) {
     log.trace(
       { currentState },
       `Poller found a ticket already post ${STATE_PENDING}. Keeping current state.`,
     );
 
-    return { state: currentState, status: undefined };
+    return { state: undefined, status: undefined };
   }
 
   // **Should** always have a customer ID if ZenDesk is configured correctly (i.e., a trigger that requires it to "solve")
