@@ -1,5 +1,5 @@
 {
-  "name": "@qlever-llc/zendesk-sync",
+  "name": "@qlever2llc/zendesk-sync",
   "version": "2.0.1",
   "description": "Sync zendesk tickets to trellis",
   "main": "dist/index.js",
