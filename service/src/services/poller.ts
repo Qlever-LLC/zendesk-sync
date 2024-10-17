@@ -36,8 +36,8 @@ import { makeSyncTicketJob } from './syncTicket.js';
 
 let pollRunning = false;
 
-export function pollerService(log: Logger, oada: OADAClient): CronJob {
-  log = log.child({ service: 'poller' });
+export function pollerService(logOrig: Logger, oada: OADAClient): CronJob {
+  logOrig = logOrig.child({ service: 'poller' });
 
   const cron = CronJob.from({
     cronTime: `*/${config.get('service.poller.pollRate')} * * * * *`,
@@ -45,25 +45,25 @@ export function pollerService(log: Logger, oada: OADAClient): CronJob {
     runOnInit: true,
     async onTick() {
       if (pollRunning) {
-        log.warn({}, 'Poller ticks overlapped?');
+        logOrig.warn({}, 'Poller ticks overlapped?');
         return;
       }
 
       pollRunning = true;
 
       try {
-        log.info('Polling ZenDesk for eligible tickets');
+        logOrig.info('Polling ZenDesk for eligible tickets');
 
-        let tickets = await searchTickets(log, 'status:solved');
+        let tickets = await searchTickets(logOrig, 'status:solved');
         // Process them in new to old order, where old is likely to still have the same
         // issues that held it up prior
         tickets = tickets.reverse();
 
-        log.trace({}, `Found ${tickets.length} tickets.`);
+        logOrig.trace({}, `Found ${tickets.length} tickets.`);
 
         // TODO: Check the potential tickets in parallel?
         for await (const { id: ticketId } of tickets) {
-          log = log.child({ ticketId });
+          const log = logOrig.child({ ticketId });
           log.info('Checking ticket');
 
           // NOTE: The ticket that is returned by the search can be out of date.
@@ -102,7 +102,7 @@ export function pollerService(log: Logger, oada: OADAClient): CronJob {
           }
         }
       } catch (error) {
-        log.error({ error }, `Error polling ZenDesk: ${error} `);
+        logOrig.error({ error }, `Error polling ZenDesk: ${error} `);
       } finally {
         pollRunning = false;
       }
