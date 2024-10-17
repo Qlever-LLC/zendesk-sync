@@ -14,6 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { config } from '../config.js';
+
 import { type Logger } from '@oada/pino-debug';
 import { access } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
@@ -113,7 +115,7 @@ export async function generateTicketPdf(
 
   try {
     page = await pTimeout(browser.newPage(), {
-      milliseconds: 1000,
+      milliseconds: config.get('puppeteer.newPageTimeout'),
       async fallback() {
         log.debug('Could not start new page. Trying again.');
 
@@ -132,7 +134,9 @@ export async function generateTicketPdf(
           dumpio: false,
         });
 
-        return pTimeout(browser.newPage(), { milliseconds: 1000 });
+        return pTimeout(browser.newPage(), {
+          milliseconds: config.get('puppeteer.newPageTimeout'),
+        });
       },
     });
   } catch (error) {

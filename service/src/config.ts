@@ -41,8 +41,24 @@ export const { config } = await libConfig({
     env: 'NODE_ENV',
     arg: 'mode',
   },
+  puppeteer: {
+    newPageTimeout: {
+      doc: 'How long (in milliseconds) to wait for a puppeteer new page to start up. This avoid some random hangs.',
+      format: Number,
+      default: 5000,
+      env: 'SERVICE_PUPPETEER_NEW_PAGE_TIMEOUT',
+      arg: 'service-puppeteer-new-page-timeout',
+    },
+  },
   service: {
     poller: {
+      enable: {
+        doc: 'Enable the poller service to find new work within Zendesk',
+        format: Boolean,
+        default: true,
+        env: 'SERVICE_POLLER_ENABLE',
+        arg: 'service-poller-enable',
+      },
       pollRate: {
         doc: 'Polling rate in seconds',
         format: Number,

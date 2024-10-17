@@ -69,8 +69,12 @@ async function run() {
     log.info('Start @oada/jobs based services');
     await service.start();
 
-    log.info('Start polling ZenDesk polling service');
-    poller = pollerService(log, oada);
+    if (config.get('service.poller.enable')) {
+      log.info('Start polling ZenDesk polling service');
+      poller = pollerService(log, oada);
+    } else {
+      log.info('ZenDesk polling disabled.');
+    }
   } catch (error) {
     log.fatal({ error }, `Failed to start service: ${error}`);
 
