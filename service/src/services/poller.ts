@@ -62,17 +62,18 @@ export function pollerService(log: Logger, oada: OADAClient): CronJob {
         log.trace({}, `Found ${tickets.length} tickets.`);
 
         // TODO: Check the potential tickets in parallel?
-        for await (const t of tickets) {
-          log.info({ ticketId: t.id }, 'Checking ticket');
+        for await (const { id: ticketId } of tickets) {
+          log = log.child({ ticketId });
+          log.info('Checking ticket');
 
           // NOTE: The ticket that is returned by the search can be out of date.
           //       Even thought we already have the ticket, we need to get it a
           //       fresh copy from the API to make the following tests are done
           //       against the current ticket state rather than some old cache
           //       from the search API.
-          const ticket = await getTicket(log, t.id);
+          const ticket = await getTicket(log, ticketId);
 
-          const nextState = await computeNextState(ticket, log);
+          const nextState = await computeNextState(log, ticket);
           const currentState = getTicketFieldValue(
             ticket,
             config.get('zendesk.fields.state'),
@@ -112,20 +113,16 @@ export function pollerService(log: Logger, oada: OADAClient): CronJob {
 }
 
 async function computeNextState(
-  ticket: Ticket,
   log: Logger,
+  ticket: Ticket,
 ): Promise<TrellisState> {
-  const ticketId = ticket.id;
-
-  log = log.child({ ticketId });
-
   const currentState =
     getTicketFieldValue(ticket, config.get('zendesk.fields.state')) ?? '';
 
   if (currentState !== '' && currentState !== STATE_PENDING) {
-    log.warn(
-      { ticketId },
-      `Poller found a ticket not yet at ${STATE_PENDING}?`,
+    log.trace(
+      { currentState },
+      `Poller found a ticket already post ${STATE_PENDING}. Keeping current state.`,
     );
 
     return { state: currentState, status: undefined };
@@ -134,10 +131,7 @@ async function computeNextState(
   // **Should** always have a customer ID if ZenDesk is configured correctly (i.e., a trigger that requires it to "solve")
   const customerId = getCustomerOrgId(ticket);
   if (!customerId) {
-    log.error(
-      { ticketId },
-      'No customer organization associated. Logic error!',
-    );
+    log.error('No customer organization associated. Logic error!');
     return {
       state: STATE_HOLD,
       status: 'Ticket solved without assigned customer.',

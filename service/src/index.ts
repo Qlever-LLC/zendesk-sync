@@ -59,14 +59,12 @@ async function run() {
       concurrency: config.get('zendesk.concurrency'),
     });
 
-    /*
-    Log.info('Initialize `archiveTicket` service');
+    log.info('Initialize `archiveTicket` service');
     service.on(
       'syncTicket',
       config.get('service.syncTicket.timeout'),
       syncTicketService,
     );
-    */
 
     log.info('Start @oada/jobs based services');
     await service.start();
