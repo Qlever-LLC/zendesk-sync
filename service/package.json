@@ -1,6 +1,6 @@
 {
   "name": "@qlever-llc/zendesk-sync",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Sync zendesk tickets to trellis",
   "main": "dist/index.js",
   "type": "module",
