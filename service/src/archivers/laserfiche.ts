@@ -64,8 +64,6 @@ export async function doLfSync(
     result: LFSyncDocJobResult;
   };
 
-  // log = log.child({ entities });
-
   const lfId = entities.email_archive?.EntryId;
   if (!lfId) {
     log.error('No Laserfiche ID for ticket PDF?');

@@ -85,13 +85,12 @@ export async function syncTicketService(
   await ensureTicketsRoot(oada, tp.masterid);
 
   log.debug('Uploading ticket JSON');
-  const r = await ensureLinkPut(oada, {
+  await ensureLinkPut(oada, {
     path: trellisPath,
     data: ticketArchive as unknown as JsonObject,
     headers: { 'x-oada-ensure-link': 'versioned' },
     contentType: 'application/vnd.zendesk.ticket.1+json',
   });
-  const trellisId = r.headers['content-location']!.replace(/^\//, '');
 
   // Mark resource is shared to customer. Make's LF show as "shared from"
   log.debug('Mark archive as outgoing share.');
@@ -171,6 +170,9 @@ export async function syncTicketService(
 
     if (archivers.includes('laserfiche')) {
       log.debug('Creating lf-sync job to archive ticket to LaserFiche.');
+
+      const r = await oada.head({ path: trellisPath });
+      const trellisId = r.headers['content-location']!.replace(/^\//, '');
 
       await doLfSync(log, oada, ticketArchive.ticket, {
         trellisId,
