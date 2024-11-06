@@ -159,17 +159,31 @@ export async function generateTicketPdf(
       const type = message.type().slice(0, 3).toLowerCase();
 
       log.warn(`[Puppeteer ${type}]: (${message.location}) ${message.text()}`);
-      if (type === 'err') {
-        puppeteerErrors.push(message.text());
+      if (
+        type === 'err' &&
+        // Some tickets have real, but broken links. Don't count these as errors
+        !message.text().includes('the server responded with a status of 404') &&
+        !message.text().includes('net::ERR_TOO_MANY_REDIRECTS')
+      ) {
+        puppeteerErrors.push(message.text(), 'HERE1');
       }
     })
     .on('pageerror', (error) => {
       log.warn({ error }, `[Puppeteer] ${error.name}: ${error.message}.`);
-      puppeteerErrors.push(error.message);
+      puppeteerErrors.push(error.message, 'HERE2');
     })
     .on('requestfailed', (request) => {
-      log.warn(`[Puppeteer] ${request.failure()?.errorText} ${request.url()}`);
-      puppeteerErrors.push(request.failure()?.errorText ?? 'Request failure');
+      log.warn(
+        { response: request.failure(), status: request.response()?.status() },
+        `[Puppeteer] ${request.failure()?.errorText} ${request.url()}`,
+      );
+
+      const errorText = request.failure()?.errorText ?? 'Request failure';
+
+      // Some tickets have real, but broken links. Don't count these as errors
+      if (errorText !== 'net::ERR_TOO_MANY_REDIRECTS') {
+        puppeteerErrors.push(errorText, 'HERE3');
+      }
     });
 
   log.trace('Setting requestInterception = true');
@@ -200,7 +214,7 @@ export async function generateTicketPdf(
         });
       } catch (error) {
         log.trace({ error }, `Credentialed API request to ZenDesk failed.`);
-        puppeteerErrors.push(`${error}`);
+        puppeteerErrors.push(`${error}`, 'HERE4');
         await request.abort('failed');
       }
     } else {
