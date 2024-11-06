@@ -15,28 +15,38 @@
  * limitations under the License.
  */
 /* eslint-disable no-process-exit, unicorn/no-process-exit */
+import { argv } from 'node:process';
 import { config } from '../config.js';
 import { connect } from '@oada/client';
 import { doJob } from '@oada/client/jobs';
 import { getTicket } from '../zd/zendesk.js';
-import { pino } from '@oada/pino-debug';
 
-const log = pino();
+import { pino } from '@oada/pino-debug';
+const log = pino({ base: { script: argv[1] } });
+
+if (argv.length !== 4) {
+  log.error(
+    'USAGE: node reprocess-closed-ticket-range.ts startTicketID stopTicketID',
+  );
+  process.exit(1);
+}
+
+const start = Number(argv[2]);
+const stop = Number(argv[3]);
+
+const { token, domain } = config.get('oada');
+const oada = await connect({ token, domain });
 
 async function* ticketCounter() {
-  for (let id = 7070; id <= 10_000; id++) {
+  for (let id = start; id <= stop; id++) {
     yield id;
   }
 }
 
-const oada = await connect({
-  domain: config.get('oada.domain'),
-  token: config.get('oada.token'),
-});
-
+log.info({ start, stop }, 'Starting loop over tickets');
 for await (const id of ticketCounter()) {
   try {
-    log.info(`Processing ticket ID: ${id}`);
+    log.info(`Checking ticket ID: ${id}`);
     const ticket = await getTicket(log, id);
 
     if (ticket.status !== 'closed') {
@@ -44,20 +54,16 @@ for await (const id of ticketCounter()) {
       continue;
     }
 
-    try {
-      await doJob(oada, {
-        service: 'zendesk-sync',
-        type: 'syncTicket',
-        config: {
-          ticketId: ticket.id,
-          archivers: [],
-        },
-      });
-    } catch (error) {
+    doJob(oada, {
+      service: 'zendesk-sync',
+      type: 'syncTicket',
+      config: {
+        ticketId: ticket.id,
+        archivers: [],
+      },
+    }).catch((error) => {
       log.error({ ticketId: id }, `${error}`);
-
-      process.exit();
-    }
+    });
   } catch {
     log.info({ ticketId: id }, 'Not a ticket');
   }
