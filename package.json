@@ -13,7 +13,7 @@
     "build": "yarn workspaces foreach -Apt run build",
     "g:tsc": "cd $INIT_CWD && tsc -b"
   },
-  "packageManager": "yarn@4.5.0",
+  "packageManager": "yarn@4.5.1",
   "volta": {
     "node": "22.9.0"
   },
