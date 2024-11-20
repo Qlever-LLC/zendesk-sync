@@ -36,16 +36,16 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 WORKDIR ${DIR}
 
-RUN yarn set version berry
+RUN corepack yarn set version berry
 
 COPY ./package.json ./yarn.lock ./.yarnrc.yml ${DIR}/
 COPY ./template/package.json ${DIR}/template/
 COPY ./service/package.json ${DIR}/service/
 
 RUN chown -R node:node ${DIR} \
-  && yarn workspaces focus --all --production
+  && corepack yarn workspaces focus --all --production
 
-ENTRYPOINT ["/usr/bin/dumb-init", "--rewrite", "15:2", "--", "yarn", "workspace", "@qlever-llc/zendesk-sync", "run"]
+ENTRYPOINT ["/usr/bin/dumb-init", "--rewrite", "15:2", "--", "corepack", "yarn", "workspace", "@qlever-llc/zendesk-sync", "run"]
 CMD ["start"]
 
 ###
@@ -56,10 +56,10 @@ ARG DIR
 
 WORKDIR ${DIR}/template/
 
-RUN yarn install --immutable
+RUN corepack yarn install --immutable
 
 COPY ./template ${DIR}/template
-RUN yarn build
+RUN corepack yarn build
 
 ###
 ## Install and build node service
@@ -70,12 +70,12 @@ ARG DIR
 WORKDIR ${DIR}/service/
 
 # Install dev deps too
-RUN yarn install --immutable
+RUN corepack yarn install --immutable
 
 COPY ./service ${DIR}/service
 
 # build code
-RUN yarn build --verbose
+RUN corepack yarn build --verbose
 
 ###
 ## Final
