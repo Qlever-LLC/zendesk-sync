@@ -59,7 +59,7 @@ for await (const id of ticketCounter()) {
       type: 'syncTicket',
       config: {
         ticketId: ticket.id,
-        archivers: [],
+        archivers: ['laserfiche'],
       },
     }).catch((error) => {
       log.error({ ticketId: id }, `${error}`);

@@ -55,6 +55,14 @@ export async function makeSyncTicketJob(
   });
 }
 
+export async function doSyncTicketJob(oada: OADAClient, jobConfig: SyncConfig) {
+  await doJob(oada, {
+    service: 'zendesk-sync',
+    type: JOB_TYPE,
+    config: jobConfig as unknown as Record<string, unknown>,
+  });
+}
+
 // Sync a ticket to trellis, triggering lf-sync over to LF.
 export async function syncTicketService(
   job: Job,

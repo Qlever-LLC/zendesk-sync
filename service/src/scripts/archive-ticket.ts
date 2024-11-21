@@ -20,7 +20,7 @@ import '@oada/pino-debug';
 
 import { argv } from 'node:process';
 import { connect } from '@oada/client';
-import { makeSyncTicketJob } from '../services/syncTicket.js';
+import { doSyncTicketJob } from '../services/syncTicket.js';
 
 import { config } from '../config.js';
 
@@ -35,7 +35,7 @@ if (argv.length !== 3) {
 }
 
 const ticketId = Number(argv[2]); // As unknown as EntryId;
-await makeSyncTicketJob(oada, {
+await doSyncTicketJob(oada, {
   ticketId,
   archivers: config.get('service.poller.archivers'),
 });
