@@ -163,14 +163,15 @@ export async function generateTicketPdf(
         type === 'err' &&
         // Some tickets have real, but broken links. Don't count these as errors
         !message.text().includes('the server responded with a status of 404') &&
-        !message.text().includes('net::ERR_TOO_MANY_REDIRECTS')
+        !message.text().includes('net::ERR_TOO_MANY_REDIRECTS') &&
+        !message.text().includes('net::ERR_NAME_NOT_RESOLVED')
       ) {
-        puppeteerErrors.push(message.text(), 'HERE1');
+        puppeteerErrors.push(message.text());
       }
     })
     .on('pageerror', (error) => {
       log.warn({ error }, `[Puppeteer] ${error.name}: ${error.message}.`);
-      puppeteerErrors.push(error.message, 'HERE2');
+      puppeteerErrors.push(error.message);
     })
     .on('requestfailed', (request) => {
       log.warn(
@@ -181,8 +182,11 @@ export async function generateTicketPdf(
       const errorText = request.failure()?.errorText ?? 'Request failure';
 
       // Some tickets have real, but broken links. Don't count these as errors
-      if (errorText !== 'net::ERR_TOO_MANY_REDIRECTS') {
-        puppeteerErrors.push(errorText, 'HERE3');
+      if (
+        errorText !== 'net::ERR_TOO_MANY_REDIRECTS' &&
+        errorText !== 'net::ERR_NAME_NOT_RESOLVED'
+      ) {
+        puppeteerErrors.push(errorText);
       }
     });
 
@@ -214,7 +218,7 @@ export async function generateTicketPdf(
         });
       } catch (error) {
         log.trace({ error }, `Credentialed API request to ZenDesk failed.`);
-        puppeteerErrors.push(`${error}`, 'HERE4');
+        puppeteerErrors.push(`${error}`);
         await request.abort('failed');
       }
     } else {
