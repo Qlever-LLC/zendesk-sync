@@ -88,17 +88,17 @@ export interface Ticket {
     channel: string | number;
     source: {
       from:
-      | Record<string, unknown>
-      | {
-        name: string;
-        address: string;
-      };
+        | Record<string, unknown>
+        | {
+            name: string;
+            address: string;
+          };
       to:
-      | Record<string, unknown>
-      | {
-        name: string;
-        address: string;
-      };
+        | Record<string, unknown>
+        | {
+            name: string;
+            address: string;
+          };
       rel: string | undefined;
     };
   };
@@ -253,19 +253,19 @@ export interface Comment {
     channel: string;
     source: {
       from:
-      | undefined
-      | {
-        address: string;
-        name: string | undefined;
-        organization_recipients: string[] | undefined;
-      };
+        | undefined
+        | {
+            address: string;
+            name: string | undefined;
+            organization_recipients: string[] | undefined;
+          };
       to:
-      | undefined
-      | {
-        name: string | undefined;
-        address: string;
-        email_ccs: number[];
-      };
+        | undefined
+        | {
+            name: string | undefined;
+            address: string;
+            email_ccs: number[];
+          };
       rel: undefined;
     };
   };
@@ -316,32 +316,32 @@ export interface SideConversationEvent {
   via: string;
   created_at: string;
   message:
-  | undefined
-  | {
-    subject: string | undefined;
-    preview_text: string;
-    from: {
-      user_id: number;
-      group_id?: number;
-      name: string;
-      email: string;
-    };
-    to: Array<{
-      user_id: number;
-      group_id?: number;
-      name: string;
-      email: string;
-    }>;
-    body: string;
-    html_body: string;
-    external_ids: {
-      ticketAuditId: string;
-      targetTicketAuditId?: string;
-      outboundEmail?: string;
-      inboundEmail?: string;
-    };
-    attachments: SideConversationAttachment[];
-  };
+    | undefined
+    | {
+        subject: string | undefined;
+        preview_text: string;
+        from: {
+          user_id: number;
+          group_id?: number;
+          name: string;
+          email: string;
+        };
+        to: Array<{
+          user_id: number;
+          group_id?: number;
+          name: string;
+          email: string;
+        }>;
+        body: string;
+        html_body: string;
+        external_ids: {
+          ticketAuditId: string;
+          targetTicketAuditId?: string;
+          outboundEmail?: string;
+          inboundEmail?: string;
+        };
+        attachments: SideConversationAttachment[];
+      };
   updates: Record<string, unknown>;
   ticket_id: number;
 }
