@@ -384,7 +384,7 @@ export async function setTrellisState(
     });
   }
 
-  if (updates.length) {
+  if (updates.length > 0) {
     await setCustomField(log, ticket, updates);
   } else {
     log.debug('No state change to update');

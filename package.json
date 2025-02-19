@@ -18,14 +18,14 @@
   },
   "devDependencies": {
     "eslint": "^8.57.1",
-    "prettier": "^3.4.2",
-    "typescript": "^5.7.2"
+    "prettier": "^3.5.1",
+    "typescript": "^5.7.3"
   },
   "resolutions": {
     "cookie": "^1.0.0",
     "cross-spawn": "^7.0.5",
     "jsonpath-plus": "^10.0.0",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
-  "packageManager": "yarn@4.5.3"
+  "packageManager": "yarn@4.6.0"
 }
