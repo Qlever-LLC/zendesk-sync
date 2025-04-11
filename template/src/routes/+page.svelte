@@ -1,36 +1,36 @@
 <script lang="ts">
-  import "../app.css";
-  import {
-    formatLongDate,
-    formatYMD,
-    formatLongDate2,
-    formatYMD2,
-  } from "$lib/utils";
+import "../app.css";
+import {
+  formatLongDate,
+  formatLongDate2,
+  formatYMD,
+  formatYMD2,
+} from "$lib/utils";
 
-  import type { TicketArchive } from "../../../src/types";
+import type { TicketArchive } from "../../../src/types";
 
-  import Header from "$lib/components/Header.svelte";
-  import InfoBadge from "$lib/components/InfoBadge.svelte";
-  import CommentHeader from "$lib/components/CommentHeader.svelte";
-  import ZDComment from "$lib/components/ZDComment.svelte";
-  import Attachment from "$lib/components/Attachment.svelte";
+import Attachment from "$lib/components/Attachment.svelte";
+import CommentHeader from "$lib/components/CommentHeader.svelte";
+import Header from "$lib/components/Header.svelte";
+import InfoBadge from "$lib/components/InfoBadge.svelte";
+import ZDComment from "$lib/components/ZDComment.svelte";
 
-  let parent_id: string | undefined;
+let parent_id: string | undefined;
 
-  // import { data } from '$lib/sample';
-  // let p = new Promise<TicketArchive>((resolve) => resolve(data))
-  let p = fetch("http://127.0.0.1/_data")
-    .then((data) => data.json() as Promise<TicketArchive>)
-    .then((data) => {
-      if (typeof data.ticket.external_id === "string") {
-        let parent = data.ticket.external_id.match(/^.*:ticket:(.*)$/);
-        if (parent && parent.length == 2) {
-          parent_id = parent[1];
-        }
+// import { data } from '$lib/sample';
+// let p = new Promise<TicketArchive>((resolve) => resolve(data))
+const p = fetch("http://127.0.0.1/_data")
+  .then((data) => data.json() as Promise<TicketArchive>)
+  .then((data) => {
+    if (typeof data.ticket.external_id === "string") {
+      const parent = data.ticket.external_id.match(/^.*:ticket:(.*)$/);
+      if (parent && parent.length === 2) {
+        parent_id = parent[1];
       }
+    }
 
-      return data;
-    });
+    return data;
+  });
 </script>
 
 <div class="w-full">

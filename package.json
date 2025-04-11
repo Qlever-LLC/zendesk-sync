@@ -1,14 +1,10 @@
 {
   "private": true,
-  "workspaces": [
-    "service",
-    "template"
-  ],
+  "workspaces": ["service", "template"],
   "engines": {
     "node": ">=22.0.0"
   },
   "scripts": {
-    "g:eslint": "eslint $INIT_CWD",
     "test": "yarn workspaces foreach -Apt run test",
     "build": "yarn workspaces foreach -Apt run build",
     "g:tsc": "cd $INIT_CWD && tsc -b"
@@ -17,9 +13,8 @@
     "node": "22.9.0"
   },
   "devDependencies": {
-    "eslint": "^8.57.1",
-    "prettier": "^3.5.1",
-    "typescript": "^5.7.3"
+    "@biomejs/biome": "^1.9.4",
+    "typescript": "^5.8.3"
   },
   "resolutions": {
     "cookie": "^1.0.0",
@@ -27,5 +22,5 @@
     "jsonpath-plus": "^10.0.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
-  "packageManager": "yarn@4.6.0"
+  "packageManager": "yarn@4.9.1"
 }

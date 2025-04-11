@@ -16,40 +16,40 @@
  */
 
 /* eslint-disable no-console, no-process-exit, unicorn/no-process-exit */
-import '@oada/pino-debug';
+import "@oada/pino-debug";
 
-import { doSyncTicketJob, makeSyncTicketJob } from '../services/syncTicket.js';
-import { argv } from 'node:process';
-import { connect } from '@oada/client';
+import { argv } from "node:process";
+import { connect } from "@oada/client";
+import { doSyncTicketJob, makeSyncTicketJob } from "../services/syncTicket.js";
 
-import { config } from '../config.js';
+import { config } from "../config.js";
 
-const { token, domain } = config.get('oada');
+const { token, domain } = config.get("oada");
 const oada = await connect({ token, domain });
 
 /* A quick script to move an EntryId to a new location */
 
 if (argv.length !== 3 && argv.length !== 4) {
-  console.error('USAGE: node archive-ticket.js ticketId <NOW/queue>');
+  console.error("USAGE: node archive-ticket.js ticketId <NOW/queue>");
   process.exit(1);
 }
 
 const type =
   argv.length === 4
-    ? (argv[3] ?? '').toLowerCase() === 'now'
-      ? 'now'
-      : 'queue'
-    : 'now';
+    ? (argv[3] ?? "").toLowerCase() === "now"
+      ? "now"
+      : "queue"
+    : "now";
 
 const ticketId = Number(argv[2]); // As unknown as EntryId;
-await (type === 'now'
+await (type === "now"
   ? doSyncTicketJob(oada, {
       ticketId,
-      archivers: config.get('service.poller.archivers'),
+      archivers: config.get("service.poller.archivers"),
     })
   : makeSyncTicketJob(oada, {
       ticketId,
-      archivers: config.get('service.poller.archivers'),
+      archivers: config.get("service.poller.archivers"),
     }));
 
 console.info(`Created archive job for ticket ${ticketId}`);

@@ -14,6 +14,10 @@
  * See the License for the specific language governing permissions and
  o * limitations under the License.
  */
+
+import type { Logger } from "@oada/pino-debug";
+import { isAxiosError } from "axios";
+import { config } from "../config.js";
 import type {
   Comment,
   Field,
@@ -25,17 +29,14 @@ import type {
   Ticket,
   TicketArchive,
   User,
-} from '../types.js';
+} from "../types.js";
 import {
   type TrellisState,
   callTypedApi,
   callTypedPagedApi,
   indexById,
   makeCredentialedPutRequest,
-} from './utils.js';
-import { type Logger } from '@oada/pino-debug';
-import { config } from '../config.js';
-import { isAxiosError } from 'axios';
+} from "./utils.js";
 
 export async function searchTickets(
   log: Logger,
@@ -45,11 +46,11 @@ export async function searchTickets(
 
   const data = await callTypedPagedApi<Ticket>(
     log,
-    'api/v2/search.json',
-    'results',
+    "api/v2/search.json",
+    "results",
     {
       params: {
-        type: 'ticket',
+        type: "ticket",
         query: `type:ticket ${query}`,
       },
     },
@@ -58,17 +59,17 @@ export async function searchTickets(
   return data;
 }
 
-// Returns a ticket archive including the ticket JSON, metadata, and assoicated binary resources
+// Returns a ticket archive including the ticket JSON, metadata, and associated binary resources
 export async function getTicketArchive(
   log: Logger,
   ticketId: number,
 ): Promise<TicketArchive> {
-  log.trace('Fetching ticket archive');
+  log.trace("Fetching ticket archive");
 
   // Fetch the ticket JSON
   const ticket = await getTicket(log, ticketId);
 
-  // Fetch orgs assoicated with ticke
+  // Fetch orgs associated with ticke
   const orgs = await getTicketOrgs(log, ticket);
 
   // Fetch the customer org
@@ -76,7 +77,7 @@ export async function getTicketArchive(
   const org =
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     (custOrgId && orgs[custOrgId]) ||
-    (await getOrg(config.get('zendesk.default_org'), log));
+    (await getOrg(config.get("zendesk.default_org"), log));
 
   // Fetch ticket comments
   const comments = await getTicketComments(ticket, log);
@@ -84,7 +85,7 @@ export async function getTicketArchive(
   const ids = comments
     .map((c) => [
       c.author_id,
-      ...(c.via.source.to && 'email_ccs' in c.via.source.to
+      ...(c.via.source.to && "email_ccs" in c.via.source.to
         ? c.via.source.to.email_ccs
         : []),
     ])
@@ -142,13 +143,13 @@ export async function getTicket(
   log: Logger,
   id: number | string,
 ): Promise<Ticket> {
-  log.trace(`Fetching ticket.`);
+  log.trace("Fetching ticket.");
 
   try {
     return await callTypedApi(
       log,
       `api/v2/tickets/${id}?include=dates,ticket_forms`,
-      'ticket',
+      "ticket",
     );
   } catch (error) {
     if (isAxiosError(error) && error.status === 404) {
@@ -163,7 +164,7 @@ export async function getTicketOrgs(
   log: Logger,
   ticket: Ticket,
 ): Promise<Record<string, Org>> {
-  log.trace(`Fetching organizations`);
+  log.trace("Fetching organizations");
 
   const ids: number[] = [];
 
@@ -172,7 +173,7 @@ export async function getTicketOrgs(
     ids.push(ticket.organization_id);
   }
 
-  ids.push(getCustomerOrgId(ticket) ?? config.get('zendesk.default_org'));
+  ids.push(getCustomerOrgId(ticket) ?? config.get("zendesk.default_org"));
 
   return getOrgs(log, ids);
 }
@@ -181,26 +182,26 @@ export async function getTicketComments(
   ticket: Ticket,
   log: Logger,
 ): Promise<Comment[]> {
-  log.trace(`Fetching comments`);
+  log.trace("Fetching comments");
 
   return callTypedPagedApi(
     log,
     `api/v2/tickets/${ticket.id}/comments`,
-    'comments',
+    "comments",
   );
 }
 
-// Returns an array of all side conversations assoicated with a ticket id
+// Returns an array of all side conversations associated with a ticket id
 export async function getSideConversations(
   log: Logger,
   ticket: Ticket,
 ): Promise<SideConversation[]> {
-  log.trace(`Fetching side conversations.`);
+  log.trace("Fetching side conversations.");
 
   return callTypedPagedApi(
     log,
     `api/v2/tickets/${ticket.id}/side_conversations`,
-    'side_conversations',
+    "side_conversations",
   );
 }
 
@@ -219,7 +220,7 @@ export async function getSideConversationArchive(
       .filter((user, index, array) => array.indexOf(user) === index),
   );
 
-  log.trace(`Fetching side conversation attachments.`);
+  log.trace("Fetching side conversation attachments.");
 
   // Fetch users
   const users = await getUsers(
@@ -244,11 +245,11 @@ export async function getSideConversationEvents(
 ): Promise<SideConversationEvent[]> {
   log.trace(`Fetching side conversations ${sideConvo.id} events`);
 
-  // Fetch side converstation events
+  // Fetch side conversation events
   return callTypedPagedApi(
     log,
     `api/v2/tickets/${sideConvo.ticket_id}/side_conversations/${sideConvo.id}/events`,
-    'events',
+    "events",
   );
 }
 
@@ -262,18 +263,18 @@ export async function getOrgs(
   }
 
   // Uniquify the list of ids to avoid asking for duplicate orgs
-  ids = ids
+  const filteredIds = ids
     .filter((x, index, a) => a.indexOf(x) === index)
     .filter((x) => x !== undefined);
-  log.trace(`Fetching orgs.`);
+  log.trace("Fetching orgs.");
 
   const organizations = await callTypedPagedApi<Org>(
     log,
-    `api/v2/organizations/show_many.json`,
-    'organizations',
+    "api/v2/organizations/show_many.json",
+    "organizations",
     {
       params: {
-        ids: ids.join(','),
+        ids: filteredIds.join(","),
       },
     },
   );
@@ -303,16 +304,16 @@ export async function getUsers(
   }
 
   // Uniquify the list of ids to avoid asking for duplicate orgs
-  ids = ids.filter((x, index, a) => a.indexOf(x) === index);
-  log.trace(`Fetching users`);
+  const filteredIds = ids.filter((x, index, a) => a.indexOf(x) === index);
+  log.trace("Fetching users");
 
   const users = await callTypedPagedApi<User>(
     log,
-    `api/v2/users/show_many.json`,
-    'users',
+    "api/v2/users/show_many.json",
+    "users",
     {
       params: {
-        ids: ids.join(','),
+        ids: filteredIds.join(","),
       },
     },
   );
@@ -322,21 +323,21 @@ export async function getUsers(
 
 // Fetch all zendesk groups (typically not many)
 export async function getGroups(log: Logger): Promise<Record<string, Group>> {
-  log.trace('Fetching groups');
+  log.trace("Fetching groups");
 
-  const groups = await callTypedPagedApi<Group>(log, `api/v2/groups`, 'groups');
+  const groups = await callTypedPagedApi<Group>(log, "api/v2/groups", "groups");
 
   return indexById(groups);
 }
 
 // Fetch all Zendesk fields used for ticket metadata
 export async function getFields(log: Logger): Promise<Record<string, Field>> {
-  log.trace('Fetch ticket fields');
+  log.trace("Fetch ticket fields");
 
   const ticketFields = await callTypedPagedApi<Field>(
     log,
-    `api/v2/ticket_fields`,
-    'ticket_fields',
+    "api/v2/ticket_fields",
+    "ticket_fields",
   );
 
   return indexById(ticketFields);
@@ -347,7 +348,7 @@ export async function setCustomField(
   ticket: Ticket,
   fields: Array<{ id: string | number; value: string | number }>,
 ) {
-  log.trace({ fields }, 'Updating Zendesk custom fields value');
+  log.trace({ fields }, "Updating Zendesk custom fields value");
 
   await makeCredentialedPutRequest(log, `api/v2/tickets/${ticket.id}`, {
     data: {
@@ -363,8 +364,8 @@ export async function setTrellisState(
   ticket: Ticket,
   state: TrellisState,
 ) {
-  if (ticket.status === 'closed') {
-    log.warn('Can not update a closed ticket. Skipping setting Trellis state.');
+  if (ticket.status === "closed") {
+    log.warn("Can not update a closed ticket. Skipping setting Trellis state.");
     return;
   }
 
@@ -372,14 +373,14 @@ export async function setTrellisState(
 
   if (state.state) {
     updates.push({
-      id: config.get('zendesk.fields.state'),
+      id: config.get("zendesk.fields.state"),
       value: state.state,
     });
   }
 
   if (state.status) {
     updates.push({
-      id: config.get('zendesk.fields.status'),
+      id: config.get("zendesk.fields.status"),
       value: state.status,
     });
   }
@@ -387,7 +388,7 @@ export async function setTrellisState(
   if (updates.length > 0) {
     await setCustomField(log, ticket, updates);
   } else {
-    log.debug('No state change to update');
+    log.debug("No state change to update");
   }
 }
 
@@ -398,8 +399,8 @@ export async function setTicketStatus(
 ) {
   log.trace(`Marking ticket as ${status}`);
 
-  if (ticket.status === 'closed') {
-    log.warn('Can not update a closed ticket. Skipping status change.');
+  if (ticket.status === "closed") {
+    log.warn("Can not update a closed ticket. Skipping status change.");
     return;
   }
 
@@ -420,7 +421,7 @@ export async function setTicketStatus(
 export function getCustomerOrgId(ticket: Ticket): number | undefined {
   const orgId = getTicketFieldValue(
     ticket,
-    config.get('zendesk.fields.organization'),
+    config.get("zendesk.fields.organization"),
   );
 
   return orgId ? Number(orgId) : undefined;

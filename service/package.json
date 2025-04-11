@@ -7,10 +7,7 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "files": [
-    "src/**/*",
-    "dist/**/*"
-  ],
+  "files": ["src/**/*", "dist/**/*"],
   "scripts": {
     "build": "tsc -b",
     "dev": "tsc -b --watch",
@@ -19,17 +16,13 @@
     "script:archive-ticket": "node ${INSPECT:-} --enable-source-maps dist/scripts/archive-ticket.js",
     "test": "$npm_execpath run build test && c8 ava",
     "test:debug": "ava -T 60m -svc 1 --no-worker-threads",
-    "lint": "eslint ."
+    "lint": "biome check"
   },
   "ava": {
     "failFast": false,
-    "files": [
-      "**/*.test.ts"
-    ],
+    "files": ["**/*.test.ts"],
     "typescript": {
-      "extensions": [
-        "ts"
-      ],
+      "extensions": ["ts"],
       "rewritePaths": {
         "src/": "dist/",
         "test/": ".test/"
@@ -38,79 +31,45 @@
     }
   },
   "c8": {
-    "reporter": [
-      "text",
-      "lcov"
-    ],
+    "reporter": ["text", "lcov"],
     "all": true,
     "src": "src",
-    "exclude": [
-      "*.d.ts",
-      ".pnp.*",
-      ".test"
-    ]
+    "exclude": ["*.d.ts", ".pnp.*", ".test"]
   },
   "license": "Apache-2.0",
   "dependencies": {
-    "@oada/client": "^5.2.6",
+    "@oada/client": "^5.3.0",
     "@oada/jobs": "^4.7.1",
     "@oada/lib-config": "^4.0.0",
     "@oada/lib-prom": "^4.0.1",
     "@oada/pino-debug": "^4.0.1",
     "@oada/types": "^3.5.3",
-    "axios": "^1.7.9",
-    "axios-cache-interceptor": "^1.6.2",
-    "cron": "^3.5.0",
+    "axios": "^1.8.4",
+    "axios-cache-interceptor": "^1.7.0",
+    "cron": "^4.1.4",
     "debug": "^4.4.0",
     "es-main": "^1.3.0",
     "md5": "^2.3.0",
     "p-queue": "^8.1.0",
     "p-throttle": "^7.0.0",
     "p-timeout": "^6.1.4",
-    "puppeteer": "^24.2.1",
+    "puppeteer": "^24.6.1",
     "tslib": "^2.8.1"
   },
   "devDependencies": {
     "@ava/typescript": "^5.0.0",
-    "@tsconfig/node22": "^22.0.0",
+    "@tsconfig/node22": "^22.0.1",
     "@types/clone-deep": "^4.0.4",
     "@types/convict": "^6.1.6",
     "@types/cron": "^2.4.3",
     "@types/debug": "^4.1.12",
     "@types/md5": "^2.3.5",
-    "@types/node": "^22.13.4",
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0",
-    "@yarnpkg/sdks": "^3.2.0",
+    "@types/node": "^22.14.0",
+    "@yarnpkg/sdks": "^3.2.1",
     "ava": "6.2.0",
     "c8": "^10.1.3",
-    "eslint": "^8.57.1",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-config-xo": "^0.45.0",
-    "eslint-config-xo-typescript": "^4.0.0",
-    "eslint-plugin-array-func": "^5.0.2",
-    "eslint-plugin-ava": "^15.0.1",
-    "eslint-plugin-escompat": "^3.11.4",
-    "eslint-plugin-eslint-comments": "^3.2.0",
-    "eslint-plugin-filenames": "^1.3.2",
-    "eslint-plugin-github": "^5.1.8",
-    "eslint-plugin-i18n-text": "^1.0.1",
-    "eslint-plugin-import": "^2.31.0",
-    "eslint-plugin-no-constructor-bind": "^2.0.4",
-    "eslint-plugin-no-only-tests": "^3.3.0",
-    "eslint-plugin-no-secrets": "^1.1.2",
-    "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-notice": "^1.0.0",
-    "eslint-plugin-optimize-regex": "^1.2.1",
-    "eslint-plugin-prettier": "^5.2.3",
-    "eslint-plugin-promise": "^7.2.1",
-    "eslint-plugin-regexp": "^2.7.0",
-    "eslint-plugin-security": "^3.0.1",
-    "eslint-plugin-sonarjs": "^2.0.4",
-    "eslint-plugin-unicorn": "^56.0.1",
-    "prettier": "^3.5.1",
-    "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.3"
+    "tailwindcss": "^4.1.3",
+    "typescript": "^5.8.3"
   },
   "resolutions": {
     "cookie": "^1.0.0",

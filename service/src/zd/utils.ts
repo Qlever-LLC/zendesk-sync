@@ -14,17 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { buildMemoryStorage, setupCache } from 'axios-cache-interceptor';
-import { type AxiosRequestConfig } from 'axios';
-import { type Logger } from '@oada/pino-debug';
-import axiosLibrary from 'axios';
-import pThrottle from 'p-throttle';
 
-import { config } from '../config.js';
+import type { Logger } from "@oada/pino-debug";
+import axiosLibrary, { type AxiosRequestConfig } from "axios";
+import { buildMemoryStorage, setupCache } from "axios-cache-interceptor";
+import pThrottle from "p-throttle";
+
+import { config } from "../config.js";
 
 const throttle = pThrottle({
-  limit: config.get('zendesk.api_limit'),
-  interval: config.get('zendesk.api_limit_interval'),
+  limit: config.get("zendesk.api_limit"),
+  interval: config.get("zendesk.api_limit_interval"),
   strict: true,
 });
 
@@ -48,9 +48,9 @@ export async function callTypedApi<T>(
   if (!data?.[key]) {
     log.error(
       { type: key, url, cnf, data },
-      'ZenDesk API call did not return the expected type?',
+      "ZenDesk API call did not return the expected type?",
     );
-    throw new Error('Unexpected ZenDesk API response');
+    throw new Error("Unexpected ZenDesk API response");
   }
 
   return data[key];
@@ -69,9 +69,9 @@ export async function callTypedPagedApi<T>(
   if (!data?.[key]) {
     log.error(
       { type: key, url, cnf, data },
-      'ZenDesk API call did not return the expected type?',
+      "ZenDesk API call did not return the expected type?",
     );
-    throw new Error('Unexpected ZenDesk API response');
+    throw new Error("Unexpected ZenDesk API response");
   }
 
   const items = data[key];
@@ -89,12 +89,12 @@ export async function makeCredentialedGetRequest<T>(
   cnf?: AxiosRequestConfig,
 ): Promise<T> {
   log?.trace(`Making credentialed GET request: ${url}`);
-  const { username, password, baseURL } = config.get('zendesk');
+  const { username, password, baseURL } = config.get("zendesk");
 
   const r = await throttle(async () =>
     axios({
       ...cnf,
-      method: 'get',
+      method: "get",
       baseURL,
       url,
       auth: {
@@ -104,7 +104,7 @@ export async function makeCredentialedGetRequest<T>(
     }),
   )();
 
-  if (cnf?.responseType === 'arraybuffer') {
+  if (cnf?.responseType === "arraybuffer") {
     return {
       buffer: r.data,
     } as T;
@@ -119,12 +119,12 @@ export async function makeCredentialedPutRequest(
   cnf?: AxiosRequestConfig,
 ) {
   log?.trace(`Making credentialed PUT request: ${url}`);
-  const { username, password, baseURL } = config.get('zendesk');
+  const { username, password, baseURL } = config.get("zendesk");
 
   await throttle(async () =>
     axios({
       ...cnf,
-      method: 'put',
+      method: "put",
       baseURL,
       url,
       auth: {

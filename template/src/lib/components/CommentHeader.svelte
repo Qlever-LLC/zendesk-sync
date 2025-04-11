@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { User } from "../../../../src/types";
+import type { User } from "../../../../src/types";
 
-  export let author: User;
-  export let ccs: Array<User>;
-  export let created: String;
+export let author: User;
+export let ccs: Array<User>;
+export let created: string;
 </script>
 
 <div class="flex">

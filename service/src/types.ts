@@ -16,11 +16,11 @@
  */
 
 // State machine
-export const STATE_PROCESSING = 'trellis-processing';
-export const STATE_PENDING = 'trellis-pending';
-export const STATE_HOLD = 'trellis-hold';
-export const STATE_ARCHIVED = 'trellis-archived';
-export const STATE_FINISHED = 'trellis-finished';
+export const STATE_PROCESSING = "trellis-processing";
+export const STATE_PENDING = "trellis-pending";
+export const STATE_HOLD = "trellis-hold";
+export const STATE_ARCHIVED = "trellis-archived";
+export const STATE_FINISHED = "trellis-finished";
 
 // ArchiveTicket Service
 export interface SyncConfig {
@@ -28,10 +28,10 @@ export interface SyncConfig {
   archivers: Archiver[];
 }
 
-export type Archiver = 'laserfiche';
+export type Archiver = "laserfiche";
 
 export function areArchivers(archivers: string[]): archivers is Archiver[] {
-  const options = new Set(['laserfiche']);
+  const options = new Set(["laserfiche"]);
 
   return archivers.every((c) => options.has(c));
 }
@@ -241,7 +241,7 @@ export interface Attachment {
 
 export interface Comment {
   id: number;
-  type: 'Comment';
+  type: "Comment";
   author_id: number;
   body: string;
   html_body: string;

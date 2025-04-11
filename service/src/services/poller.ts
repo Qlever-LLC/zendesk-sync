@@ -1,3 +1,7 @@
+import type { OADAClient } from "@oada/client";
+import type { Logger } from "@oada/pino-debug";
+import { CronJob } from "cron";
+import { config } from "../config.js";
 /**
  * @license
  * Copyright 2024 Qlever LLC
@@ -19,42 +23,38 @@ import {
   STATE_PENDING,
   STATE_PROCESSING,
   type Ticket,
-} from '../types.js';
+} from "../types.js";
+import type { TrellisState } from "../zd/utils.js";
 import {
   getCustomerOrgId,
   getTicket,
   getTicketFieldValue,
   searchTickets,
   setTrellisState,
-} from '../zd/zendesk.js';
-import { CronJob } from 'cron';
-import { type Logger } from '@oada/pino-debug';
-import type { OADAClient } from '@oada/client';
-import { type TrellisState } from '../zd/utils.js';
-import { config } from '../config.js';
-import { makeSyncTicketJob } from './syncTicket.js';
+} from "../zd/zendesk.js";
+import { makeSyncTicketJob } from "./syncTicket.js";
 
 let pollRunning = false;
 
-export function pollerService(logOrig: Logger, oada: OADAClient): CronJob {
-  logOrig = logOrig.child({ service: 'poller' });
+export function pollerService(logger: Logger, oada: OADAClient): CronJob {
+  const logOrig = logger.child({ service: "poller" });
 
   const cron = CronJob.from({
-    cronTime: `*/${config.get('service.poller.pollRate')} * * * * *`,
+    cronTime: `*/${config.get("service.poller.pollRate")} * * * * *`,
     start: true,
     runOnInit: true,
     async onTick() {
       if (pollRunning) {
-        logOrig.warn({}, 'Poller ticks overlapped?');
+        logOrig.warn({}, "Poller ticks overlapped?");
         return;
       }
 
       pollRunning = true;
 
       try {
-        logOrig.info('Polling ZenDesk for eligible tickets');
+        logOrig.info("Polling ZenDesk for eligible tickets");
 
-        let tickets = await searchTickets(logOrig, 'status:solved');
+        let tickets = await searchTickets(logOrig, "status:solved");
         // Process them in new to old order, where old is likely to still have the same
         // issues that held it up prior
         tickets = tickets.reverse();
@@ -64,7 +64,7 @@ export function pollerService(logOrig: Logger, oada: OADAClient): CronJob {
         // TODO: Check the potential tickets in parallel?
         for await (const { id: ticketId } of tickets) {
           const log = logOrig.child({ ticketId });
-          log.info('Checking ticket');
+          log.info("Checking ticket");
 
           // NOTE: The ticket that is returned by the search can be out of date.
           //       Even thought we already have the ticket, we need to get it a
@@ -76,11 +76,11 @@ export function pollerService(logOrig: Logger, oada: OADAClient): CronJob {
           const nextState = await computeNextState(log, ticket);
           const currentState = getTicketFieldValue(
             ticket,
-            config.get('zendesk.fields.state'),
+            config.get("zendesk.fields.state"),
           );
           const currentStatus = getTicketFieldValue(
             ticket,
-            config.get('zendesk.fields.status'),
+            config.get("zendesk.fields.status"),
           );
 
           // Update Zendesk with the new state, but only if changed. Otherwise, Zendesk tickets are flodded with "useless" updates
@@ -95,11 +95,11 @@ export function pollerService(logOrig: Logger, oada: OADAClient): CronJob {
 
           // Make a job to move forward in the state machine
           if (nextState.state === STATE_PROCESSING) {
-            log.info({ ticketId: ticket.id }, 'Creating an archive job');
+            log.info({ ticketId: ticket.id }, "Creating an archive job");
 
             await makeSyncTicketJob(oada, {
               ticketId: ticket.id,
-              archivers: config.get('service.poller.archivers'),
+              archivers: config.get("service.poller.archivers"),
             });
           }
         }
@@ -119,11 +119,11 @@ async function computeNextState(
   ticket: Ticket,
 ): Promise<TrellisState> {
   const currentState =
-    getTicketFieldValue(ticket, config.get('zendesk.fields.state')) ?? '';
+    getTicketFieldValue(ticket, config.get("zendesk.fields.state")) ?? "";
 
-  log.trace({ currentState }, 'Lookup ticket currentState');
+  log.trace({ currentState }, "Lookup ticket currentState");
 
-  if (currentState !== '' && currentState !== STATE_PENDING) {
+  if (currentState !== "" && currentState !== STATE_PENDING) {
     log.trace(
       { currentState },
       `Poller found a ticket already post ${STATE_PENDING}. Keeping current state.`,
@@ -135,15 +135,15 @@ async function computeNextState(
   // **Should** always have a customer ID if ZenDesk is configured correctly (i.e., a trigger that requires it to "solve")
   const customerId = getCustomerOrgId(ticket);
   if (!customerId) {
-    log.error('No customer organization associated. Logic error!');
+    log.error("No customer organization associated. Logic error!");
     return {
       state: STATE_HOLD,
-      status: 'Ticket solved without assigned customer.',
+      status: "Ticket solved without assigned customer.",
     };
   }
 
   return {
     state: STATE_PROCESSING,
-    status: `Creating ticket archive.`,
+    status: "Creating ticket archive.",
   };
 }

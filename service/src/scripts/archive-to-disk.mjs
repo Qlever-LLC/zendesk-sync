@@ -17,17 +17,17 @@
 
 /* eslint-disable no-console, no-process-exit, unicorn/no-process-exit -- CLI script */
 
-import { writeFile } from 'node:fs/promises';
+import { writeFile } from "node:fs/promises";
 
-import esMain from 'es-main';
-import pTimeout from 'p-timeout';
+import esMain from "es-main";
+import pTimeout from "p-timeout";
 
+import { generateTicketPdf } from "../../dist/zd/pdf.js";
 import {
   doCredentialedApiRequest,
   getTicket,
   getTicketArchive,
-} from '../../dist/zd/zendesk.js';
-import { generateTicketPdf } from '../../dist/zd/pdf.js';
+} from "../../dist/zd/zendesk.js";
 
 const abortController = new AbortController();
 
@@ -41,9 +41,9 @@ const throttle = pThrottle({
 */
 
 async function doFileArchive(index, signal) {
-  return new Promise(async function (resolve, reject) {
-    signal.addEventListener('abort', () => {
-      reject(new Error('Uncaught Error'));
+  return new Promise(async (resolve, reject) => {
+    signal.addEventListener("abort", () => {
+      reject(new Error("Uncaught Error"));
     });
 
     console.log(`====== Starting ticket: ${index}`);
@@ -58,17 +58,17 @@ async function doFileArchive(index, signal) {
       }
 
       console.log(`====== Starting ticket: ${index}`);
-      console.log(`====== Ticket found.  Archiving`);
+      console.log("====== Ticket found.  Archiving");
 
-      console.log('Fetching ticket archive');
+      console.log("Fetching ticket archive");
       const archive = await getTicketArchive(ticket);
 
       await writeFile(`./log/${ticket.id}.json`, JSON.stringify(archive));
 
-      console.log('Creating ticket pdf');
+      console.log("Creating ticket pdf");
       const ticketPdf = await generateTicketPdf(archive);
 
-      console.log('Writing ticket pdf');
+      console.log("Writing ticket pdf");
       await writeFile(`./log/Ticket_${ticket.id}.pdf`, ticketPdf);
 
       // Ticket attachments
@@ -80,7 +80,7 @@ async function doFileArchive(index, signal) {
 
       // Side ticket attachments
       for await (const sideConversationArchive of archive.sideConversations) {
-        console.log(`Processing side conversation`);
+        console.log("Processing side conversation");
 
         for await (const attach of Object.values(
           sideConversationArchive.attachments,
@@ -103,7 +103,7 @@ async function doFileArchive(index, signal) {
   });
 }
 
-process.on('uncaughtException', (e) => {
+process.on("uncaughtException", (e) => {
   console.log(`***** ERROR: ${e}`);
   abortController.abort();
 });
@@ -122,6 +122,6 @@ if (esMain(import.meta)) {
     }
   }
 
-  console.log('DONE');
+  console.log("DONE");
   process.exit();
 }

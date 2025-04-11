@@ -1,18 +1,18 @@
 <script lang="ts">
-  import prettyBytes from 'pretty-bytes';
+import prettyBytes from "pretty-bytes";
 
-  export let url: string;
-  export let contentType: string;
-  export let filename: string;
-  export let size: number;
+export let url: string;
+export let contentType: string;
+export let filename: string;
+export let size: number;
 
-  export let thumbnail: string | undefined = undefined;
+export let thumbnail: string | undefined = undefined;
 
-  if (!thumbnail) {
-    if (contentType === 'image/png' || contentType === 'image/jpeg') {
-      thumbnail = url;
-    }
+if (!thumbnail) {
+  if (contentType === "image/png" || contentType === "image/jpeg") {
+    thumbnail = url;
   }
+}
 </script>
 
 <div>

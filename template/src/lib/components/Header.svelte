@@ -1,7 +1,7 @@
 <script lang="ts">
-  export let type: string;
-  export let ticketId: number | string;
-  export let sideConversationId: string | undefined = undefined;
+export let type: string;
+export let ticketId: number | string;
+export const sideConversationId: string | undefined = undefined;
 </script>
 
 <div class="navbar bg-base-300 flex break-before-page break-after-avoid">

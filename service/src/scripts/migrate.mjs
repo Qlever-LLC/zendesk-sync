@@ -22,13 +22,13 @@
 /* eslint-disable @typescript-eslint/no-shadow */
 /* eslint-disable no-shadow */
 
-import fs from 'node:fs/promises';
+import fs from "node:fs/promises";
 
-import { config } from '../../dist/config.js';
+import { config } from "../../dist/config.js";
 
-import axios from 'axios';
-import esMain from 'es-main';
-import pThrottle from 'p-throttle';
+import axios from "axios";
+import esMain from "es-main";
+import pThrottle from "p-throttle";
 
 const {
   domain: from,
@@ -38,14 +38,14 @@ const {
   newUsername: toUsername,
   newPassword: toPassword,
   api_limit: API_LIMIT,
-} = config.get('zendesk');
+} = config.get("zendesk");
 const throttle = pThrottle({
   limit: API_LIMIT,
   interval: 60 * 1000, // 1 minute
   strict: true,
 });
 const throttled = throttle(axios);
-const mappingsFilePath = './scripts/migrationMappings.json';
+const mappingsFilePath = "./scripts/migrationMappings.json";
 
 const ASSIGNEE_FIELD = 21_334_256_018_061;
 const QLEVER_USER = 22_123_868_209_293;
@@ -57,32 +57,32 @@ let counter = 0;
 setInterval(() => counter++, 3000);
 
 let allMaps = JSON.parse(
-  await fs.readFile(mappingsFilePath, { encoding: 'utf8' }),
+  await fs.readFile(mappingsFilePath, { encoding: "utf8" }),
 );
 allMaps[21] = {
-  type: 'tickets',
+  type: "tickets",
   data: {
-    url: 'https://smithfield-fsqa.zendesk.com/api/v2/tickets/44.json',
+    url: "https://smithfield-fsqa.zendesk.com/api/v2/tickets/44.json",
     id: 44,
     external_id: null,
     via: {
-      channel: 'web',
+      channel: "web",
       source: {
         from: {},
         to: {},
         rel: null,
       },
     },
-    created_at: '2022-11-29T18:41:20Z',
-    updated_at: '2022-12-12T18:58:18Z',
+    created_at: "2022-11-29T18:41:20Z",
+    updated_at: "2022-12-12T18:58:18Z",
     type: null,
-    subject: 'COI Request',
-    raw_subject: 'COI Request',
+    subject: "COI Request",
+    raw_subject: "COI Request",
     description:
-      'Hi,\nCan you send me your current COI?\n\nThanks,\nSam\n\n\n\n\n\nThis communication and any accompanying documents is confidential and is intended to be privileged pursuant to applicable law. If you are not the intended recipient, or the employee or agent responsible for delivering it to the intended recipient, then you are hereby notified that the dissemination, distribution or copying of this communication is prohibited. If you received this communication in error, please notify Centricity, LLC immediately by telephone (+1 888-778-9994) and then delete this communication and destroy all copies. Thank you.',
+      "Hi,\nCan you send me your current COI?\n\nThanks,\nSam\n\n\n\n\n\nThis communication and any accompanying documents is confidential and is intended to be privileged pursuant to applicable law. If you are not the intended recipient, or the employee or agent responsible for delivering it to the intended recipient, then you are hereby notified that the dissemination, distribution or copying of this communication is prohibited. If you received this communication in error, please notify Centricity, LLC immediately by telephone (+1 888-778-9994) and then delete this communication and destroy all copies. Thank you.",
     priority: null,
-    status: 'solved',
-    recipient: 'support@centricity.zendesk.com',
+    status: "solved",
+    recipient: "support@centricity.zendesk.com",
     requester_id: 23_332_445_790_093,
     submitter_id: 22_123_868_209_293,
     assignee_id: 22_123_672_268_045,
@@ -112,7 +112,7 @@ allMaps[21] = {
       },
       {
         id: 21_727_554_026_381,
-        value: '23331110657933',
+        value: "23331110657933",
       },
       {
         id: 21_727_674_687_629,
@@ -145,7 +145,7 @@ allMaps[21] = {
       },
       {
         id: 21_727_554_026_381,
-        value: '23331110657933',
+        value: "23331110657933",
       },
       {
         id: 21_727_674_687_629,
@@ -168,64 +168,64 @@ allMaps[21] = {
     from_messaging_channel: false,
   },
 };
-allMaps['71d4ba1d-abda-11ed-8999-0154f27c2bdb'] = {
-  type: 'side_conversations',
+allMaps["71d4ba1d-abda-11ed-8999-0154f27c2bdb"] = {
+  type: "side_conversations",
   data: {
     side_conversation: {
-      url: 'https://smithfield-fsqa.zendesk.com/api/v2/tickets/44/side_conversations/71d4ba1d-abda-11ed-8999-0154f27c2bdb',
-      id: '71d4ba1d-abda-11ed-8999-0154f27c2bdb',
+      url: "https://smithfield-fsqa.zendesk.com/api/v2/tickets/44/side_conversations/71d4ba1d-abda-11ed-8999-0154f27c2bdb",
+      id: "71d4ba1d-abda-11ed-8999-0154f27c2bdb",
       ticket_id: 44,
-      subject: 'Formula',
+      subject: "Formula",
       preview_text:
-        'Hi Lisa, I just looked up the ingredients for each product code and neither contain Rosemary. Thanks! Chris [image ?name=unnamed_attachment_1.png] Christopher Pantaleo FSQA Customer & Supplier Compliance Manager p: (757) 365-3529 c: (757) 810-1794 e: cpantaleo@smithfield.com 401',
-      state: 'closed',
+        "Hi Lisa, I just looked up the ingredients for each product code and neither contain Rosemary. Thanks! Chris [image ?name=unnamed_attachment_1.png] Christopher Pantaleo FSQA Customer & Supplier Compliance Manager p: (757) 365-3529 c: (757) 810-1794 e: cpantaleo@smithfield.com 401",
+      state: "closed",
       participants: [
         {
           user_id: 22_123_546_059_277,
-          name: 'Christopher Pantaleo',
-          email: 'cpantaleo@smithfield.com',
+          name: "Christopher Pantaleo",
+          email: "cpantaleo@smithfield.com",
         },
         {
           user_id: 22_123_672_268_045,
-          name: 'Lisa Strong',
-          email: 'lstrong@smithfield.com',
+          name: "Lisa Strong",
+          email: "lstrong@smithfield.com",
         },
       ],
-      created_at: '2023-02-13T20:10:21.934Z',
-      updated_at: '2023-02-13T20:20:21.000Z',
-      message_added_at: '2023-02-13T20:20:21.000Z',
-      state_updated_at: '2023-02-13T20:10:21.934Z',
+      created_at: "2023-02-13T20:10:21.934Z",
+      updated_at: "2023-02-13T20:20:21.000Z",
+      message_added_at: "2023-02-13T20:20:21.000Z",
+      state_updated_at: "2023-02-13T20:10:21.934Z",
       external_ids: {},
     },
     events: [
       {
-        id: '71d4ba1d-abda-11ed-8999-0154f27c2bdb',
-        side_conversation_id: '71d4ba1d-abda-11ed-8999-0154f27c2bdb',
+        id: "71d4ba1d-abda-11ed-8999-0154f27c2bdb",
+        side_conversation_id: "71d4ba1d-abda-11ed-8999-0154f27c2bdb",
         actor: {
           user_id: 22_123_672_268_045,
-          name: 'Lisa Strong',
-          email: 'lstrong@smithfield.com',
+          name: "Lisa Strong",
+          email: "lstrong@smithfield.com",
         },
-        type: 'create',
-        via: 'api',
-        created_at: '2023-02-13T20:10:21.934Z',
+        type: "create",
+        via: "api",
+        created_at: "2023-02-13T20:10:21.934Z",
         message: {
-          subject: 'Formula',
+          subject: "Formula",
           preview_text:
-            'Can you please tell me if these products contain Rosemary? Thanks!',
+            "Can you please tell me if these products contain Rosemary? Thanks!",
           from: {
             user_id: 22_123_672_268_045,
-            name: 'Lisa Strong',
-            email: 'lstrong@smithfield.com',
+            name: "Lisa Strong",
+            email: "lstrong@smithfield.com",
           },
           to: [
             {
               user_id: 22_123_546_059_277,
-              name: 'Christopher Pantaleo',
-              email: 'cpantaleo@smithfield.com',
+              name: "Christopher Pantaleo",
+              email: "cpantaleo@smithfield.com",
             },
           ],
-          body: 'Can you please tell me if these products contain Rosemary? Thanks!',
+          body: "Can you please tell me if these products contain Rosemary? Thanks!",
           html_body:
             '<div class="zd-comment">\n<div data-comment-type="body">\n<div>Can you please tell me if these products contain Rosemary? </div>\n<div>Thanks!</div>\n</div>\n</div>',
           external_ids: {},
@@ -235,38 +235,38 @@ allMaps['71d4ba1d-abda-11ed-8999-0154f27c2bdb'] = {
         ticket_id: 44,
       },
       {
-        id: 'd6e6f1be-abdb-11ed-a30e-d9b1500f3f34',
-        side_conversation_id: '71d4ba1d-abda-11ed-8999-0154f27c2bdb',
+        id: "d6e6f1be-abdb-11ed-a30e-d9b1500f3f34",
+        side_conversation_id: "71d4ba1d-abda-11ed-8999-0154f27c2bdb",
         actor: {
           user_id: 22_123_546_059_277,
-          name: 'Christopher Pantaleo',
-          email: 'cpantaleo@smithfield.com',
+          name: "Christopher Pantaleo",
+          email: "cpantaleo@smithfield.com",
         },
-        type: 'reply',
-        via: 'api',
-        created_at: '2023-02-13T20:20:21.000Z',
+        type: "reply",
+        via: "api",
+        created_at: "2023-02-13T20:20:21.000Z",
         message: {
           subject: null,
           preview_text:
-            'Hi Lisa, I just looked up the ingredients for each product code and neither contain Rosemary. Thanks! Chris [image ?name=unnamed_attachment_1.png] Christopher Pantaleo FSQA Customer & Supplier Compliance Manager p: (757) 365-3529 c: (757) 810-1794 e: cpantaleo@smithfield.com 401',
+            "Hi Lisa, I just looked up the ingredients for each product code and neither contain Rosemary. Thanks! Chris [image ?name=unnamed_attachment_1.png] Christopher Pantaleo FSQA Customer & Supplier Compliance Manager p: (757) 365-3529 c: (757) 810-1794 e: cpantaleo@smithfield.com 401",
           from: {
             user_id: 22_123_546_059_277,
-            name: 'Christopher Pantaleo',
-            email: 'cpantaleo@smithfield.com',
+            name: "Christopher Pantaleo",
+            email: "cpantaleo@smithfield.com",
           },
           to: [
             {
               user_id: 22_123_672_268_045,
-              name: 'Lisa Strong',
-              email: 'lstrong@smithfield.com',
+              name: "Lisa Strong",
+              email: "lstrong@smithfield.com",
             },
             {
               user_id: 22_123_546_059_277,
-              name: 'Christopher Pantaleo',
-              email: 'cpantaleo@smithfield.com',
+              name: "Christopher Pantaleo",
+              email: "cpantaleo@smithfield.com",
             },
           ],
-          body: 'Hi Lisa, I just looked up the ingredients for each product code and neither contain Rosemary. Thanks! Chris [image ?name=unnamed_attachment_1.png] Christopher Pantaleo FSQA Customer & Supplier Compliance Manager p: (757) 365-3529 c: (757) 810-1794 e: cpantaleo@smithfield.com 401 North Church Street Smithfield, VA 23430 smithfieldfoods.com',
+          body: "Hi Lisa, I just looked up the ingredients for each product code and neither contain Rosemary. Thanks! Chris [image ?name=unnamed_attachment_1.png] Christopher Pantaleo FSQA Customer & Supplier Compliance Manager p: (757) 365-3529 c: (757) 810-1794 e: cpantaleo@smithfield.com 401 North Church Street Smithfield, VA 23430 smithfieldfoods.com",
           html_body: /* html */ `<div class="zd-comment">
 <div class="zd-comment" dir="auto">
 <div style="page: WordSection1">
@@ -344,12 +344,12 @@ async function createThings(type, input) {
     }
     */
     // Prep the object
-    delete value.id;
-    delete value.url;
-    const typeKey = type.replace(/s$/, '');
+    value.id = undefined;
+    value.url = undefined;
+    const typeKey = type.replace(/s$/, "");
     try {
       const response = await throttled({
-        method: 'post',
+        method: "post",
         url: `${to}/api/v2/${type}`,
         data: { [typeKey]: value },
         auth: {
@@ -375,7 +375,7 @@ export async function getThings(type) {
   const toThings = [];
   try {
     let r = await throttled({
-      method: 'get',
+      method: "get",
       url: `${from}/api/v2/${type}`,
       auth: {
         username,
@@ -388,7 +388,7 @@ export async function getThings(type) {
     while (r.data.next_page) {
       // eslint-disable-next-line no-await-in-loop
       r = await throttled({
-        method: 'get',
+        method: "get",
         url: r.data.next_page,
         auth: {
           username,
@@ -400,7 +400,7 @@ export async function getThings(type) {
 
     // Now get them from the destination
     r = await throttled({
-      method: 'get',
+      method: "get",
       url: `${to}/api/v2/${type}`,
       auth: {
         username: toUsername,
@@ -413,7 +413,7 @@ export async function getThings(type) {
     while (r.data.next_page) {
       // eslint-disable-next-line no-await-in-loop
       r = await throttled({
-        method: 'get',
+        method: "get",
         url: r.data.next_page,
         default_group_id: undefined,
         // Custom_role_id:,
@@ -434,9 +434,9 @@ export async function getThings(type) {
 
 export async function main() {
   // 0. Groups
-  const [groupsFrom, groupsTo] = await getThings('groups');
-  await getMappings('groups', groupsFrom, groupsTo, 'name');
-  await createThings('groups', groupsFrom);
+  const [groupsFrom, groupsTo] = await getThings("groups");
+  await getMappings("groups", groupsFrom, groupsTo, "name");
+  await createThings("groups", groupsFrom);
 
   /*
   //1. Organization fields
@@ -475,7 +475,7 @@ export async function main() {
 
   //4. Ticket fields
   */
-  const [ticketFieldsFrom, ticketFieldsTo] = await getThings('ticket_fields');
+  const [ticketFieldsFrom, ticketFieldsTo] = await getThings("ticket_fields");
   /*
   //4a. Copy ticket fields to the new environment
   getMappings('ticket_fields', ticketFieldsFrom, ticketFieldsTo, 'title');
@@ -533,20 +533,19 @@ export async function main() {
     }
 
     if (
-      t.status === 'pending' ||
-      t.status === 'open' ||
-      t.status === 'new' ||
-      t.status === 'hold'
+      t.status === "pending" ||
+      t.status === "open" ||
+      t.status === "new" ||
+      t.status === "hold"
     ) {
       // If (t.status !== 'pending' && t.status !== 'open' && t.status !== 'new' && t.status !== 'hold') {
-      if (t.via && t.via.channel === 'side_conversation') {
+      if (t.via && t.via.channel === "side_conversation") {
         console.log(`ticket ${id} was side conversation`);
       } else {
         await handleTicket(t);
       }
     } else {
       console.log(`ticket ${id} was not closed status`);
-      continue;
     }
   }
 }
@@ -562,11 +561,11 @@ async function handleTicket(ticket) {
 async function mapTicket(t) {
   const { id } = t;
   // Remove read-only keys we can't use in import
-  delete t.attachments;
-  delete t.audit_id;
-  delete t.brand_id;
-  delete t.id;
-  delete t.url;
+  t.attachments = undefined;
+  t.audit_id = undefined;
+  t.brand_id = undefined;
+  t.id = undefined;
+  t.url = undefined;
   //  Let assignee_id = t.assignee_id;
 
   t = {
@@ -623,7 +622,7 @@ async function mapTicket(t) {
     t.group_id = correspondingGroup || t.group_id;
 
     if (!t.assignee_id) {
-      console.log('Using default assign id on ticket');
+      console.log("Using default assign id on ticket");
     }
 
     t.fields = t.fields.map(({ id, value }) => {
@@ -645,7 +644,7 @@ async function mapTicket(t) {
   if (org.value === null) {
     const newOrg = t.organization_id || DEFAULT_ORG;
     if (!t.organization_id) {
-      console.log('Using default org id on ticket');
+      console.log("Using default org id on ticket");
     }
 
     t.custom_fields = t.custom_fields.map(({ id, value }) => {
@@ -660,7 +659,7 @@ async function mapTicket(t) {
 async function getTicket(id) {
   try {
     const r = await throttled({
-      method: 'get',
+      method: "get",
       url: `${from}/api/v2/tickets/${id}`,
       auth: {
         username,
@@ -686,7 +685,7 @@ async function importTicket(ticket, id) {
   let response;
   try {
     response = await throttled({
-      method: 'post',
+      method: "post",
       url: `${to}/api/v2/imports/tickets`,
       data: { ticket },
       auth: {
@@ -695,7 +694,7 @@ async function importTicket(ticket, id) {
       },
     });
     allMaps[id] = {
-      type: 'tickets',
+      type: "tickets",
       data: response.data.ticket,
     };
     console.log(`finished importing ticket ${id}`);
@@ -713,7 +712,7 @@ async function importSideConversation(
   if (allMaps[id]) return;
   try {
     const response = await throttled({
-      method: 'post',
+      method: "post",
       url: `${to}/api/v2/tickets/${newTicketId}/side_conversations/import`,
       data: { side_conversation, events },
       auth: {
@@ -722,7 +721,7 @@ async function importSideConversation(
       },
     });
     allMaps[id] = {
-      type: 'side_conversations',
+      type: "side_conversations",
       data: response.data,
     };
   } catch (error) {
@@ -739,13 +738,13 @@ async function handleSideConvAttach(att) {
   let form;
   try {
     r = await throttled({
-      method: 'get',
+      method: "get",
       url: att.content_url,
       auth: {
         username,
         password,
       },
-      responseType: 'arraybuffer',
+      responseType: "arraybuffer",
     });
   } catch (error) {
     // File missing? not much we can do here
@@ -754,26 +753,26 @@ async function handleSideConvAttach(att) {
 
   try {
     form = new FormData();
-    form.append('file', Buffer.from(r.data), {
+    form.append("file", Buffer.from(r.data), {
       filename: att.file_name,
       content_type: att.content_type,
       knownLength: att.size,
     });
     // Form.append('file', new Blob([Buffer.from(r.data)]));
     p = await throttled({
-      method: 'post',
+      method: "post",
       url: `${to}/api/v2/tickets/side_conversations/attachments`,
       auth: {
         username: toUsername,
         password: toPassword,
       },
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
       },
       data: form,
     });
     allMaps[att.id] = {
-      type: 'side-conv-attachments',
+      type: "side-conv-attachments",
       data: p.data,
     };
     return p.data;
@@ -792,13 +791,13 @@ async function handleAttachment(att) {
   let data;
   try {
     r = await throttled({
-      method: 'get',
+      method: "get",
       url: att.content_url,
       auth: {
         username: toUsername,
         password: toPassword,
       },
-      responseType: 'arraybuffer',
+      responseType: "arraybuffer",
     });
   } catch (error) {
     // Failed to get, can't fix this
@@ -808,14 +807,14 @@ async function handleAttachment(att) {
   // Upload the binary
   try {
     p = await throttled({
-      method: 'post',
+      method: "post",
       url: `${to}/api/v2/uploads`,
       auth: {
         username: toUsername,
         password: toPassword,
       },
       headers: {
-        'Content-Type': att.content_type,
+        "Content-Type": att.content_type,
       },
       params: {
         filename: att.file_name,
@@ -827,7 +826,7 @@ async function handleAttachment(att) {
       token: p.data.upload.token,
     };
     allMaps[att.id] = {
-      type: 'attachments',
+      type: "attachments",
       data,
     };
     return data;
@@ -870,12 +869,12 @@ async function handleComments(ticketId) {
     c.uploads = c.attachments.map((att) => getMap(att.id).token);
 
     // Delete the read-only keys (some can be used in the Ticket Import endpoint)
-    delete c.attachments;
-    delete c.audit_id;
-    delete c.body;
-    delete c.id;
-    delete c.plain_body;
-    delete c.url;
+    c.attachments = undefined;
+    c.audit_id = undefined;
+    c.body = undefined;
+    c.id = undefined;
+    c.plain_body = undefined;
+    c.url = undefined;
 
     c = {
       ...mapObjectContent(c, {
@@ -898,7 +897,7 @@ async function getComments(ticketId) {
   try {
     // Grab all the attachments including in-liners
     r = await throttled({
-      method: 'get',
+      method: "get",
       url: `${from}/api/v2/tickets/${ticketId}/comments`,
       auth: {
         username,
@@ -919,7 +918,7 @@ async function getComments(ticketId) {
   try {
     // Now grab a version of comments with in-line attachments left as-is
     r = await throttled({
-      method: 'get',
+      method: "get",
       url: `${from}/api/v2/tickets/${ticketId}/comments`,
       auth: {
         username,
@@ -938,7 +937,7 @@ async function getComments(ticketId) {
       // Grab all the attachments including in-liners
       // eslint-disable-next-line no-await-in-loop
       r = await throttled({
-        method: 'get',
+        method: "get",
         url: r.data.next_page,
         auth: {
           username,
@@ -956,7 +955,7 @@ async function getComments(ticketId) {
       // Now grab a version of comments with in-line attachments left as-is
       // eslint-disable-next-line no-await-in-loop
       r = await throttled({
-        method: 'get',
+        method: "get",
         url: r.data.next_page,
         auth: {
           username,
@@ -996,8 +995,8 @@ async function handleSideConversations(oldTicketId, newTicketId) {
 
 async function mapSideConversation(sideConversation, ticketId) {
   // Remove read-only keys (only those we cannot keep)
-  delete sideConversation.id;
-  delete sideConversation.url;
+  sideConversation.id = undefined;
+  sideConversation.url = undefined;
 
   // Map/Prep the side conversation; if its a ticket, sub things out like a ticket?
   sideConversation = {
@@ -1025,9 +1024,9 @@ async function mapSideConversation(sideConversation, ticketId) {
 }
 
 async function mapEvent(event, newTicketId, scid) {
-  delete event.id;
-  delete event.side_conversation_id;
-  delete event.url;
+  event.id = undefined;
+  event.side_conversation_id = undefined;
+  event.url = undefined;
   event = {
     ...event,
     actor: mapParticipant(event.actor),
@@ -1065,7 +1064,7 @@ async function mapMessage(message) {
     }
   }
 
-  delete message.attachments;
+  message.attachments = undefined;
 
   return {
     ...message,
@@ -1090,17 +1089,17 @@ function mapParticipant(part) {
 }
 
 function mapVia(via) {
-  if (via.source.to && via.source.to.id) {
+  if (via.source.to?.id) {
     via.source.to.id = getMap(via.source.to.id).id || via.source.to.id;
   }
 
-  if (via.source.to && via.source.to.email_ccs) {
+  if (via.source.to?.email_ccs) {
     via.source.to.email_ccs = via.source.to.email_ccs
       .map((e) => getMap(e).id)
       .filter(Boolean);
   }
 
-  if (via.source.from && via.source.from.id) {
+  if (via.source.from?.id) {
     via.source.from.id &&= getMap(via.source.from.id).id || via.source.from.id;
 
     via.source.from.ticket_id &&=
@@ -1120,14 +1119,14 @@ async function getSideConversations(ticketId) {
   let r;
   try {
     r = await throttled({
-      method: 'get',
+      method: "get",
       url: `${from}/api/v2/tickets/${ticketId}/side_conversations`,
       auth: {
         username,
         password,
       },
       params: {
-        include: 'events',
+        include: "events",
       },
     });
 
@@ -1137,14 +1136,14 @@ async function getSideConversations(ticketId) {
     while (r.data.next_page) {
       // eslint-disable-next-line no-await-in-loop
       r = await throttled({
-        method: 'get',
+        method: "get",
         url: r.data.next_page,
         auth: {
           username,
           password,
         },
         params: {
-          include: 'events',
+          include: "events",
         },
       });
       sideConversations.push(...r.data.side_conversations);
@@ -1182,7 +1181,7 @@ function mapObjectContent(object, content) {
 }
 
 function mapValue(value, mappingFunctionOrDefault) {
-  if (typeof mappingFunctionOrDefault === 'function') {
+  if (typeof mappingFunctionOrDefault === "function") {
     return mappingFunctionOrDefault(value);
   }
 
@@ -1203,12 +1202,12 @@ async function storeMappings(mapObject) {
     ...mapObject,
   };
   await fs.writeFile(mappingsFilePath, JSON.stringify(allMaps), {
-    encoding: 'utf8',
+    encoding: "utf8",
   });
 }
 
 function getMap(id) {
-  return (allMaps[id] || {}).data || {};
+  return allMaps[id]?.data || {};
 }
 
 async function fixMigratedInlineImages() {
@@ -1221,6 +1220,6 @@ if (esMain(import.meta)) {
   // Await main();
   await fixMigratedInlineImages();
 
-  console.log('DONE');
+  console.log("DONE");
   process.exit();
 }

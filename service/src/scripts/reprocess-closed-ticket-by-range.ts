@@ -15,18 +15,18 @@
  * limitations under the License.
  */
 /* eslint-disable no-process-exit, unicorn/no-process-exit */
-import { argv } from 'node:process';
-import { config } from '../config.js';
-import { connect } from '@oada/client';
-import { doJob } from '@oada/client/jobs';
-import { getTicket } from '../zd/zendesk.js';
+import { argv } from "node:process";
+import { connect } from "@oada/client";
+import { doJob } from "@oada/client/jobs";
+import { config } from "../config.js";
+import { getTicket } from "../zd/zendesk.js";
 
-import { pino } from '@oada/pino-debug';
+import { pino } from "@oada/pino-debug";
 const log = pino({ base: { script: argv[1] } });
 
 if (argv.length !== 4) {
   log.error(
-    'USAGE: node reprocess-closed-ticket-range.ts startTicketID stopTicketID',
+    "USAGE: node reprocess-closed-ticket-range.ts startTicketID stopTicketID",
   );
   process.exit(1);
 }
@@ -34,7 +34,7 @@ if (argv.length !== 4) {
 const start = Number(argv[2]);
 const stop = Number(argv[3]);
 
-const { token, domain } = config.get('oada');
+const { token, domain } = config.get("oada");
 const oada = await connect({ token, domain });
 
 async function* ticketCounter() {
@@ -43,30 +43,30 @@ async function* ticketCounter() {
   }
 }
 
-log.info({ start, stop }, 'Starting loop over tickets');
+log.info({ start, stop }, "Starting loop over tickets");
 for await (const id of ticketCounter()) {
   try {
     log.info(`Checking ticket ID: ${id}`);
     const ticket = await getTicket(log, id);
 
-    if (ticket.status !== 'closed') {
-      log.info('Skipping NOT closed ticket.');
+    if (ticket.status !== "closed") {
+      log.info("Skipping NOT closed ticket.");
       continue;
     }
 
     doJob(oada, {
-      service: 'zendesk-sync',
-      type: 'syncTicket',
+      service: "zendesk-sync",
+      type: "syncTicket",
       config: {
         ticketId: ticket.id,
-        archivers: ['laserfiche'],
+        archivers: ["laserfiche"],
       },
     }).catch((error) => {
       log.error({ ticketId: id }, `${error}`);
     });
   } catch {
-    log.info({ ticketId: id }, 'Not a ticket');
+    log.info({ ticketId: id }, "Not a ticket");
   }
 }
 
-log.info('DONE');
+log.info("DONE");
