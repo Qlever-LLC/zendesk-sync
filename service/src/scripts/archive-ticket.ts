@@ -20,9 +20,8 @@ import "@oada/pino-debug";
 
 import { argv } from "node:process";
 import { connect } from "@oada/client";
-import { doSyncTicketJob, makeSyncTicketJob } from "../services/syncTicket.js";
-
 import { config } from "../config.js";
+import { doSyncTicketJob, makeSyncTicketJob } from "../services/syncTicket.js";
 
 const { token, domain } = config.get("oada");
 const oada = await connect({ token, domain });

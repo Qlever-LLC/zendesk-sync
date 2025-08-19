@@ -31,11 +31,11 @@ import type {
   User,
 } from "../types.js";
 import {
-  type TrellisState,
   callTypedApi,
   callTypedPagedApi,
   indexById,
   makeCredentialedPutRequest,
+  type TrellisState,
 } from "./utils.js";
 
 export async function searchTickets(

@@ -14,16 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { config } from "../config.js";
 
 import { createReadStream } from "node:fs";
 import { access } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
-
 import type { Logger } from "@oada/pino-debug";
 import pTimeout from "p-timeout";
-import { type Page, launch } from "puppeteer";
+import { launch, type Page } from "puppeteer";
+import { config } from "../config.js";
 
 import type { TicketArchive } from "../types.js";
 import { makeCredentialedGetRequest } from "./utils.js";

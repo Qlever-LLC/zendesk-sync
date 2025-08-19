@@ -23,12 +23,10 @@
 /* eslint-disable no-shadow */
 
 import fs from "node:fs/promises";
-
-import { config } from "../../dist/config.js";
-
 import axios from "axios";
 import esMain from "es-main";
 import pThrottle from "p-throttle";
+import { config } from "../../dist/config.js";
 
 const {
   domain: from,

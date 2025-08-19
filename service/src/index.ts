@@ -16,14 +16,12 @@
  */
 
 import { readFileSync } from "node:fs";
-
-import { pino } from "@oada/pino-debug";
-import { config } from "./config.js";
-
-import { type OADAClient, connect } from "@oada/client";
+import { connect, type OADAClient } from "@oada/client";
 import { Service } from "@oada/jobs";
+import { pino } from "@oada/pino-debug";
 import type { CronJob } from "cron";
 import esMain from "es-main";
+import { config } from "./config.js";
 import { pollerService } from "./services/poller.js";
 import { syncTicketService } from "./services/syncTicket.js";
 

@@ -1,19 +1,18 @@
 <script lang="ts">
 import "../app.css";
-import {
-  formatLongDate,
-  formatLongDate2,
-  formatYMD,
-  formatYMD2,
-} from "$lib/utils";
-
-import type { TicketArchive } from "../../../src/types";
 
 import Attachment from "$lib/components/Attachment.svelte";
 import CommentHeader from "$lib/components/CommentHeader.svelte";
 import Header from "$lib/components/Header.svelte";
 import InfoBadge from "$lib/components/InfoBadge.svelte";
 import ZDComment from "$lib/components/ZDComment.svelte";
+import {
+  formatLongDate,
+  formatLongDate2,
+  formatYMD,
+  formatYMD2,
+} from "$lib/utils";
+import type { TicketArchive } from "../../../src/types";
 
 let parent_id: string | undefined;
 

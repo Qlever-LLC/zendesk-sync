@@ -24,14 +24,14 @@ import { DOCS_LIST } from "../tree.js";
  */
 import {
   type Attachment,
+  assertIsArchiverArray,
   type EnsureResult,
+  type SideConversationAttachment,
   STATE_ARCHIVED,
   STATE_FINISHED,
-  type SideConversationAttachment,
   type SyncConfig,
   type Ticket,
   type TicketArchive,
-  assertIsArchiverArray,
 } from "../types.js";
 import { generateTicketPdf } from "../zd/pdf.js";
 import { callTypedApi } from "../zd/utils.js";

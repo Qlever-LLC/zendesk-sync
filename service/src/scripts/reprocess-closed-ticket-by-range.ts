@@ -18,10 +18,10 @@
 import { argv } from "node:process";
 import { connect } from "@oada/client";
 import { doJob } from "@oada/client/jobs";
+import { pino } from "@oada/pino-debug";
 import { config } from "../config.js";
 import { getTicket } from "../zd/zendesk.js";
 
-import { pino } from "@oada/pino-debug";
 const log = pino({ base: { script: argv[1] } });
 
 if (argv.length !== 4) {

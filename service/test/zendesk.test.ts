@@ -17,19 +17,16 @@
 
 /* eslint-disable unicorn/no-null */
 
-import test from "ava";
-
 import { writeFile } from "node:fs/promises";
 import { setTimeout } from "node:timers/promises";
-
-import { config } from "../dist/config.js";
+import { connect } from "@oada/client";
+import test from "ava";
 
 import axios from "axios";
 import md5 from "md5";
 import PQueue from "p-queue";
 import { launch } from "puppeteer";
-
-import { connect } from "@oada/client";
+import { config } from "../dist/config.js";
 
 import { handleTicket, pollZd, run, watchZendesk } from "../dist/index.js";
 import type { OrgTicket, Ticket } from "../dist/types.js";
