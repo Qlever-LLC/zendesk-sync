@@ -29,6 +29,7 @@ permissions:
   repository-projects: read
   statuses: read
   attestations: read
+  models: read
 
 on:
   push:
