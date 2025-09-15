@@ -58,7 +58,7 @@
     "@oada/lib-prom": "^4.0.1",
     "@oada/pino-debug": "^4.0.1",
     "@oada/types": "^3.5.3",
-    "axios": "^1.11.0",
+    "axios": "^1.12.2",
     "axios-cache-interceptor": "^1.8.0",
     "cron": "^4.3.3",
     "debug": "^4.4.1",
