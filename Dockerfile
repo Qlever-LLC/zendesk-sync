@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 # Copyright 2022 Qlever LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +20,7 @@ ARG DIR=/usr/src/app/
 ###
 ## Image base
 ###
-FROM node:$NODE_VER AS base
+FROM node:${NODE_VER} AS base
 ARG DIR
 
 # Install needed packages
@@ -36,15 +38,14 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 WORKDIR ${DIR}
 
-RUN corepack yarn set version berry
-
 COPY ./package.json ./yarn.lock ./.yarnrc.yml ${DIR}/
 COPY ./template/package.json ${DIR}/template/
 COPY ./service/package.json ${DIR}/service/
 
-RUN chown -R node:node ${DIR} \
-  && corepack yarn workspaces focus --all --production
+RUN corepack yarn workspaces focus --all --production
 
+# Launch entrypoint with dumb-init
+# Remap SIGTERM to SIGINT https://github.com/Yelp/dumb-init#signal-rewriting
 ENTRYPOINT ["/usr/bin/dumb-init", "--rewrite", "15:2", "--", "corepack", "yarn", "workspace", "@qlever-llc/zendesk-sync", "run"]
 CMD ["start"]
 
@@ -74,7 +75,7 @@ RUN corepack yarn install --immutable
 
 COPY ./service ${DIR}/service
 
-# build code
+# Build code
 RUN corepack yarn build --verbose
 
 ###
@@ -83,8 +84,17 @@ RUN corepack yarn build --verbose
 FROM base AS production
 ARG DIR
 
+ENV COREPACK_HOME=/home/node/.cache/node/corepack
+RUN corepack enable
+
 WORKDIR ${DIR}/service
-USER node
 
 COPY --from=build-service ${DIR}/service/dist ${DIR}/service/dist
 COPY --from=build-template ${DIR}/template/dist ${DIR}/service/dist-template
+
+RUN chown -R node:node ${DIR}
+# Do not run service as root
+USER node
+
+# Have corepack download yarn
+RUN corepack install
