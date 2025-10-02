@@ -16,8 +16,8 @@
     "node": "22.9.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.2.4",
-    "typescript": "^5.9.2"
+    "@biomejs/biome": "^2.2.5",
+    "typescript": "^5.9.3"
   },
   "resolutions": {
     "cookie": "^1.0.0",
@@ -25,5 +25,5 @@
     "jsonpath-plus": "^10.0.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
-  "packageManager": "yarn@4.9.4"
+  "packageManager": "yarn@4.10.3"
 }
