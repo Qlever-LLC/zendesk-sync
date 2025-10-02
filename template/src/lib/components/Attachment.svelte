@@ -1,5 +1,5 @@
 <script lang="ts">
-import prettyBytes from "pretty-bytes";
+
 
 export let url: string;
 export let contentType: string;

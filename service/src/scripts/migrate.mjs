@@ -473,7 +473,7 @@ export async function main() {
 
   //4. Ticket fields
   */
-  const [ticketFieldsFrom, ticketFieldsTo] = await getThings("ticket_fields");
+  const [_ticketFieldsFrom, _ticketFieldsTo] = await getThings("ticket_fields");
   /*
   //4a. Copy ticket fields to the new environment
   getMappings('ticket_fields', ticketFieldsFrom, ticketFieldsTo, 'title');

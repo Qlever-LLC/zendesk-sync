@@ -1,30 +1,19 @@
 <script lang="ts">
 import "../app.css";
 
-import Attachment from "$lib/components/Attachment.svelte";
-import CommentHeader from "$lib/components/CommentHeader.svelte";
-import Header from "$lib/components/Header.svelte";
-import InfoBadge from "$lib/components/InfoBadge.svelte";
-import ZDComment from "$lib/components/ZDComment.svelte";
-import {
-  formatLongDate,
-  formatLongDate2,
-  formatYMD,
-  formatYMD2,
-} from "$lib/utils";
 import type { TicketArchive } from "../../../src/types";
 
-let parent_id: string | undefined;
+let _parent_id: string | undefined;
 
 // import { data } from '$lib/sample';
 // let p = new Promise<TicketArchive>((resolve) => resolve(data))
-const p = fetch("http://127.0.0.1/_data")
+const _p = fetch("http://127.0.0.1/_data")
   .then((data) => data.json() as Promise<TicketArchive>)
   .then((data) => {
     if (typeof data.ticket.external_id === "string") {
       const parent = data.ticket.external_id.match(/^.*:ticket:(.*)$/);
       if (parent && parent.length === 2) {
-        parent_id = parent[1];
+        _parent_id = parent[1];
       }
     }
 

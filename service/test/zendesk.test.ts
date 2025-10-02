@@ -25,11 +25,10 @@ import test from "ava";
 import axios from "axios";
 import md5 from "md5";
 import PQueue from "p-queue";
-import { launch } from "puppeteer";
 import { config } from "../dist/config.js";
 
-import { handleTicket, pollZd, run, watchZendesk } from "../dist/index.js";
-import type { OrgTicket, Ticket } from "../dist/types.js";
+import { handleTicket, pollZd, watchZendesk } from "../dist/index.js";
+import type { Ticket } from "../dist/types.js";
 import { generateTicketPdf } from "../dist/zd/pdf.js";
 import { getTicketArchive } from "../dist/zd/zendesk.js";
 
@@ -40,7 +39,7 @@ const { email1, email2 } = config.get("testing");
 const POLL_RATE = config.get("poll-rate");
 
 const oada = await connect({ domain, token });
-const CENT_TEST_ORG = 12_909_020_494_349;
+const _CENT_TEST_ORG = 12_909_020_494_349;
 const MASTERID = "resources/2ShqFzJoJ1yxjFe9zGSUVuEIBoa";
 console.log(
   `TESTING WITH THE FOLLOWING TICKET POLL RATE: every ${POLL_RATE} seconds. ADJUST IF NECESSARY.`,
