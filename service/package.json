@@ -53,9 +53,9 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@oada/client": "^6.0.0",
-    "@oada/jobs": "^5.0.0",
+    "@oada/jobs": "^5.0.1",
     "@oada/lib-config": "^4.0.0",
-    "@oada/lib-prom": "^4.0.1",
+    "@oada/lib-prom": "^4.0.2",
     "@oada/pino-debug": "^4.0.1",
     "@oada/types": "^3.5.3",
     "axios": "^1.12.2",
