@@ -17,8 +17,7 @@
 
 import type { JsonObject, OADAClient, PUTRequest } from "@oada/client";
 import { doJob } from "@oada/client/jobs";
-import { type Job, type Json, postJob } from "@oada/jobs";
-import type { WorkerContext } from "@oada/jobs/dist/Service.js";
+import { type Job, type Json, type WorkerContext, postJob } from "@oada/jobs";
 import type { Logger } from "@oada/pino-debug";
 
 import { doLfSync } from "../archivers/laserfiche.js";
