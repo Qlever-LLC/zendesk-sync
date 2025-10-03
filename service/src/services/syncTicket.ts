@@ -1,11 +1,3 @@
-import type { JsonObject, OADAClient, PUTRequest } from "@oada/client";
-import { doJob } from "@oada/client/jobs";
-import { type Job, type Json, postJob } from "@oada/jobs";
-import type { WorkerContext } from "@oada/jobs/dist/Service.js";
-import type { Logger } from "@oada/pino-debug";
-import { doLfSync } from "../archivers/laserfiche.js";
-import { config } from "../config.js";
-import { DOCS_LIST } from "../tree.js";
 /**
  * @license
  * Copyright 2024 Qlever LLC
@@ -22,13 +14,22 @@ import { DOCS_LIST } from "../tree.js";
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import type { JsonObject, OADAClient, PUTRequest } from "@oada/client";
+import { doJob } from "@oada/client/jobs";
+import { type Job, type Json, postJob } from "@oada/jobs";
+import type { WorkerContext } from "@oada/jobs/dist/Service.js";
+import type { Logger } from "@oada/pino-debug";
+
+import { doLfSync } from "../archivers/laserfiche.js";
+import { config } from "../config.js";
+import { DOCS_LIST } from "../tree.js";
 import {
   type Attachment,
   assertIsArchiverArray,
   type EnsureResult,
   type SideConversationAttachment,
-  STATE_ARCHIVED,
-  STATE_FINISHED,
+  State,
   type SyncConfig,
   type Ticket,
   type TicketArchive,
@@ -77,7 +78,7 @@ export async function syncTicketService(
   log.debug("Generating ticket archive");
   const ticketArchive = await getTicketArchive(log, ticketId);
 
-  if (getState(ticketArchive.ticket) === STATE_ARCHIVED) {
+  if (getState(ticketArchive.ticket) === State.Archived) {
     log.warn("Re-processing an archived ticket.");
   }
 
@@ -168,7 +169,7 @@ export async function syncTicketService(
   log.debug("Updating Zendesk ticket Trellis state/status");
   // Update state on Zendesk ticket
   await setTrellisState(log, ticketArchive.ticket, {
-    state: STATE_ARCHIVED,
+    state: State.Archived,
     status: jobId,
   });
 
@@ -195,7 +196,7 @@ export async function syncTicketService(
   log.info("Ticket done");
 
   return {
-    state: STATE_FINISHED,
+    state: State.Finished,
     masterId: tp.masterid,
     location: trellisPath,
   };
@@ -299,7 +300,7 @@ async function ensureTicketsRoot(oada: OADAClient, masterId: string) {
 async function ensurePath(oada: OADAClient, path: string, contentType: string) {
   try {
     await oada.head({ path });
-  } catch (error) {
+  } catch (error: unknown) {
     if ((error as { status: number })?.status === 404) {
       await oada.put({
         path,
@@ -321,7 +322,7 @@ async function ensureLinkPut(oada: OADAClient, request: PUTRequest) {
 
   try {
     await oada.head({ path: request.path });
-  } catch (error) {
+  } catch (error: unknown) {
     if ((error as { status: number })?.status === 404) {
       request.headers = { ...request.headers, "x-oada-ensure-link": linkType };
     }

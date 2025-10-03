@@ -15,12 +15,14 @@
  * limitations under the License.
  */
 
-import { readFileSync } from "node:fs";
 import { connect, type OADAClient } from "@oada/client";
 import { Service } from "@oada/jobs";
 import { pino } from "@oada/pino-debug";
 import type { CronJob } from "cron";
 import esMain from "es-main";
+
+import packageJson from '../package.json' with {type: 'json'};
+
 import { config } from "./config.js";
 import { pollerService } from "./services/poller.js";
 import { syncTicketService } from "./services/syncTicket.js";
@@ -49,7 +51,7 @@ async function run() {
   let poller: CronJob;
 
   try {
-    log.info("Connecting to Trellis");
+    log.debug("Connecting to Trellis");
     oada = await connect({ token, domain });
 
     log.info("Creating Zendesk-sync service");
@@ -61,7 +63,7 @@ async function run() {
     });
 
     if (config.get("service.syncTicket.enable")) {
-      log.info("Initialize `syncTicket` service");
+      log.debug("Initialize `syncTicket` service");
       service.on(
         "syncTicket",
         config.get("service.syncTicket.timeout"),
@@ -71,21 +73,21 @@ async function run() {
       log.info("syncTicket service disabled.");
     }
 
-    log.info("Start @oada/jobs based services");
+    log.debug("Start @oada/jobs based services");
     await service.start();
 
     if (config.get("service.poller.enable")) {
-      log.info("Start polling ZenDesk polling service");
+      log.debug("Start polling ZenDesk polling service");
       poller = pollerService(log, oada);
     } else {
-      log.info("ZenDesk polling disabled.");
+      log.debug("ZenDesk polling disabled.");
     }
-  } catch (error) {
-    log.fatal({ error }, `Failed to start service: ${error}`);
+  } catch (error: unknown) {
+    log.fatal(error, `Failed to start service: ${error}`);
 
     // @ts-expect-error Try to stop poller, if needed
     if (poller) {
-      poller.stop();
+      await poller.stop();
     }
 
     // @ts-expect-error Try to stop @oada/jobs services, if needed
@@ -103,10 +105,7 @@ async function run() {
 if (esMain(import.meta)) {
   log.trace("esMain determined to run the service");
 
-  const { name, version } = JSON.parse(
-    readFileSync("./package.json", "utf8"),
-  ) as { name: string; version: string };
-
+  const { name, version } = packageJson;
   log.info({ name, version }, `Starting ${name}, version ${version}`);
 
   await run();

@@ -14,11 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /* eslint-disable no-process-exit, unicorn/no-process-exit */
 import { argv } from "node:process";
+
 import { connect } from "@oada/client";
 import { doJob } from "@oada/client/jobs";
 import { pino } from "@oada/pino-debug";
+
 import { config } from "../config.js";
 import { getTicket } from "../zd/zendesk.js";
 
@@ -61,11 +64,11 @@ for await (const id of ticketCounter()) {
         ticketId: ticket.id,
         archivers: ["laserfiche"],
       },
-    }).catch((error) => {
-      log.error({ ticketId: id }, `${error}`);
+    }).catch((error: unknown) => {
+      log.error({ err: error, ticketId: id }, `${error}`);
     });
-  } catch {
-    log.info({ ticketId: id }, "Not a ticket");
+  } catch(error: unknown) {
+    log.info({ err: error, ticketId: id }, "Not a ticket");
   }
 }
 

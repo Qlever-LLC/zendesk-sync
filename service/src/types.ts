@@ -15,12 +15,16 @@
  * limitations under the License.
  */
 
-// State machine
-export const STATE_PROCESSING = "trellis-processing";
-export const STATE_PENDING = "trellis-pending";
-export const STATE_HOLD = "trellis-hold";
-export const STATE_ARCHIVED = "trellis-archived";
-export const STATE_FINISHED = "trellis-finished";
+/**
+  * State machine
+  */
+export enum State {
+  Processing = "trellis-processing",
+  Pending = "trellis-pending",
+  Hold = "trellis-hold",
+  Archived = "trellis-archived",
+  Finished = "trellis-finished",
+}
 
 // ArchiveTicket Service
 export interface SyncConfig {

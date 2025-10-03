@@ -1,7 +1,3 @@
-import type { OADAClient } from "@oada/client";
-import type { Logger } from "@oada/pino-debug";
-import { CronJob } from "cron";
-import { config } from "../config.js";
 /**
  * @license
  * Copyright 2024 Qlever LLC
@@ -18,10 +14,14 @@ import { config } from "../config.js";
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import type { OADAClient } from "@oada/client";
+import type { Logger } from "@oada/pino-debug";
+import { CronJob } from "cron";
+
+import { config } from "../config.js";
 import {
-  STATE_HOLD,
-  STATE_PENDING,
-  STATE_PROCESSING,
+  State,
   type Ticket,
 } from "../types.js";
 import type { TrellisState } from "../zd/utils.js";
@@ -54,15 +54,14 @@ export function pollerService(logger: Logger, oada: OADAClient): CronJob {
       try {
         logOrig.info("Polling ZenDesk for eligible tickets");
 
-        let tickets = await searchTickets(logOrig, "status:solved");
-        // Process them in new to old order, where old is likely to still have the same
-        // issues that held it up prior
-        tickets = tickets.reverse();
+        const tickets = await searchTickets(logOrig, "status:solved");
 
         logOrig.trace({}, `Found ${tickets.length} tickets.`);
 
+        // Process them in new to old order, where old is likely to still have the same
+        // issues that held it up prior
         // TODO: Check the potential tickets in parallel?
-        for await (const { id: ticketId } of tickets) {
+        for await (const { id: ticketId } of tickets.reverse()) {
           const log = logOrig.child({ ticketId });
           log.info("Checking ticket");
 
@@ -94,7 +93,7 @@ export function pollerService(logger: Logger, oada: OADAClient): CronJob {
           }
 
           // Make a job to move forward in the state machine
-          if (nextState.state === STATE_PROCESSING) {
+          if (nextState.state === State.Processing) {
             log.info({ ticketId: ticket.id }, "Creating an archive job");
 
             await makeSyncTicketJob(oada, {
@@ -103,8 +102,8 @@ export function pollerService(logger: Logger, oada: OADAClient): CronJob {
             });
           }
         }
-      } catch (error) {
-        logOrig.error({ error }, `Error polling ZenDesk: ${error} `);
+      } catch (error: unknown) {
+        logOrig.error(error, `Error polling ZenDesk: ${error} `);
       } finally {
         pollRunning = false;
       }
@@ -123,10 +122,10 @@ async function computeNextState(
 
   log.trace({ currentState }, "Lookup ticket currentState");
 
-  if (currentState !== "" && currentState !== STATE_PENDING) {
+  if (currentState !== "" && currentState !== State.Pending) {
     log.trace(
       { currentState },
-      `Poller found a ticket already post ${STATE_PENDING}. Keeping current state.`,
+      `Poller found a ticket already post ${State.Pending}. Keeping current state.`,
     );
 
     return { state: undefined, status: undefined };
@@ -137,13 +136,13 @@ async function computeNextState(
   if (!customerId) {
     log.error("No customer organization associated. Logic error!");
     return {
-      state: STATE_HOLD,
+      state: State.Hold,
       status: "Ticket solved without assigned customer.",
     };
   }
 
   return {
-    state: STATE_PROCESSING,
+    state: State.Processing,
     status: "Creating ticket archive.",
   };
 }

@@ -2,7 +2,7 @@
   "extends": "@tsconfig/node22",
   "compilerOptions": {
     "composite": true,
-    "module": "node16",
+    "module": "node20",
     "moduleResolution": "node16",
     "removeComments": true,
     "stripInternal": true,
@@ -19,6 +19,7 @@
     "noUnusedLocals": false,
     "sourceMap": true,
     "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
     "rootDir": "src",
     "outDir": "dist",
     "types": ["node"]

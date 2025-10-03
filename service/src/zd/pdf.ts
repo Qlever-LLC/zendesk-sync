@@ -19,11 +19,12 @@ import { createReadStream } from "node:fs";
 import { access } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
+
 import type { Logger } from "@oada/pino-debug";
 import pTimeout from "p-timeout";
 import { launch, type Page } from "puppeteer";
-import { config } from "../config.js";
 
+import { config } from "../config.js";
 import type { TicketArchive } from "../types.js";
 import { makeCredentialedGetRequest } from "./utils.js";
 
@@ -139,9 +140,9 @@ export async function generateTicketPdf(
         });
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     await browser.close();
-    log.error(`Could not create new page in puppeteer! ${error}`);
+    log.error(error, `Could not create new page in puppeteer! ${error}`);
 
     throw error;
   }
@@ -153,7 +154,7 @@ export async function generateTicketPdf(
       log.trace("[Puppeteer] load occurred");
     })
     .on("error", (error) => {
-      log.error(`[Puppeteer] ${error.name}: ${error.message}.`);
+      log.error(error, `[Puppeteer] ${error.name}: ${error.message}.`);
     })
     .on("console", (message) => {
       const type = message.type().slice(0, 3).toLowerCase();
@@ -170,7 +171,7 @@ export async function generateTicketPdf(
       }
     })
     .on("pageerror", (error) => {
-      log.warn({ error }, `[Puppeteer] ${error.name}: ${error.message}.`);
+      log.warn(error, `[Puppeteer] ${error.name}: ${error.message}.`);
       puppeteerErrors.push(error.message);
     })
     .on("requestfailed", (request) => {
@@ -216,8 +217,8 @@ export async function generateTicketPdf(
             responseType: "arraybuffer",
           }),
         });
-      } catch (error) {
-        log.trace({ error }, "Credentialed API request to ZenDesk failed.");
+      } catch (error: unknown) {
+        log.error(error, "Credentialed API request to ZenDesk failed.");
         puppeteerErrors.push(`${error}`);
         await request.abort("failed");
       }
@@ -247,9 +248,9 @@ export async function generateTicketPdf(
         },
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     await browser.close();
-    log.error(`Could not navigate to ticket template! ${error}`);
+    log.error(error, `Could not navigate to ticket template! ${error}`);
 
     throw error;
   }

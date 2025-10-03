@@ -17,6 +17,7 @@
 
 import type { Logger } from "@oada/pino-debug";
 import { isAxiosError } from "axios";
+
 import { config } from "../config.js";
 import type {
   Comment,
@@ -151,9 +152,9 @@ export async function getTicket(
       `api/v2/tickets/${id}?include=dates,ticket_forms`,
       "ticket",
     );
-  } catch (error) {
+  } catch (error: unknown) {
     if (isAxiosError(error) && error.status === 404) {
-      throw new Error(`Ticket ${id} not found.`);
+      throw new Error(`Ticket ${id} not found.`, {cause: error});
     }
 
     throw error;

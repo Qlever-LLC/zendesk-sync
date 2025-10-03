@@ -19,6 +19,7 @@ import type { OADAClient } from "@oada/client";
 import { doJob } from "@oada/client/jobs";
 import type { Logger } from "@oada/pino-debug";
 import type JobSchema from "@oada/types/oada/service/job.js";
+
 import { config } from "../config.js";
 import type { Ticket } from "../types.js";
 import { setCustomField } from "../zd/zendesk.js";
