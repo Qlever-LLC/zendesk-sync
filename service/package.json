@@ -59,7 +59,7 @@
     "@oada/pino-debug": "^4.0.1",
     "@oada/types": "^3.5.3",
     "axios": "^1.12.2",
-    "axios-cache-interceptor": "^1.8.3",
+    "axios-cache-interceptor": "^1.11.1",
     "cron": "^4.3.3",
     "debug": "^4.4.3",
     "es-main": "^1.4.0",

@@ -766,7 +766,7 @@ __metadata:
     "@yarnpkg/sdks": "npm:^3.2.3"
     ava: "npm:6.4.1"
     axios: "npm:^1.12.2"
-    axios-cache-interceptor: "npm:^1.8.3"
+    axios-cache-interceptor: "npm:^1.11.1"
     c8: "npm:^10.1.3"
     cron: "npm:^4.3.3"
     debug: "npm:^4.4.3"
@@ -1883,16 +1883,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"axios-cache-interceptor@npm:^1.8.3":
-  version: 1.8.3
-  resolution: "axios-cache-interceptor@npm:1.8.3"
+"axios-cache-interceptor@npm:^1.11.1":
+  version: 1.11.2
+  resolution: "axios-cache-interceptor@npm:1.11.2"
   dependencies:
-    cache-parser: "npm:1.2.5"
-    fast-defer: "npm:1.1.8"
-    object-code: "npm:1.3.3"
+    cache-parser: "npm:^1.2.6"
+    fast-defer: "npm:^1.1.9"
+    http-vary: "npm:^1.0.3"
+    object-code: "npm:^2.0.0"
+    try: "npm:^1.0.3"
   peerDependencies:
     axios: ^1
-  checksum: 10c0/a106b3525d54bab6658e4b7a77c3b963296d0c7c24863800f9b04d671c2173545f53b9d7369bb89a03506c38310ade048cdd7025a9e00422ab2e4826ac39b85b
+  checksum: 10c0/4caa99f57248d82acaefbf17034c3702b4744a35ecd54919538c7a5bff01eeade48ced457533c94fc810a8a2f5d16e3def5492b81255d88b020023f5bab92311
   languageName: node
   linkType: hard
 
@@ -2111,10 +2113,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cache-parser@npm:1.2.5":
-  version: 1.2.5
-  resolution: "cache-parser@npm:1.2.5"
-  checksum: 10c0/08ef9b465a0af87565f12448a2c250934f4c02f1247a9c519759139a0e2db5584f45ffa8401ce721f7e5a8f8ba1faf3ddc1e99c29e5e93aba01f7e1f4ee8ef9a
+"cache-parser@npm:^1.2.6":
+  version: 1.2.6
+  resolution: "cache-parser@npm:1.2.6"
+  checksum: 10c0/a4842831936984782f6f55b7a543dea52be6c1bee5e780ff49d798ac5bed3e0ad6a6e7d48cb8f796d61a7b550d8552e96ac4ea17c4702239d7e9a4e11336f8e5
   languageName: node
   linkType: hard
 
@@ -3179,10 +3181,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fast-defer@npm:1.1.8":
-  version: 1.1.8
-  resolution: "fast-defer@npm:1.1.8"
-  checksum: 10c0/4537cf81ce3e1505adba01dfe232231271162c8365427b360e0e86c8e4bf65f08d9e6ced1bd063fbafb48376f2ff152d1cad3cb25237126492921a15ce203e88
+"fast-defer@npm:^1.1.9":
+  version: 1.1.9
+  resolution: "fast-defer@npm:1.1.9"
+  checksum: 10c0/dd1109220810c4dcf362e685922164f2155e7ad42fee71e990d764c0728ae2e4082a7f81c7f3ed68e708b700c08af42f152f29bc559982690b9916e25208faca
   languageName: node
   linkType: hard
 
@@ -3681,6 +3683,13 @@ __metadata:
     agent-base: "npm:^7.1.0"
     debug: "npm:^4.3.4"
   checksum: 10c0/4207b06a4580fb85dd6dff521f0abf6db517489e70863dca1a0291daa7f2d3d2d6015a57bd702af068ea5cf9f1f6ff72314f5f5b4228d299c0904135d2aef921
+  languageName: node
+  linkType: hard
+
+"http-vary@npm:^1.0.3":
+  version: 1.0.3
+  resolution: "http-vary@npm:1.0.3"
+  checksum: 10c0/bc0b891ba795b65ce0acf4e14b021153c85e6500c430aa78fea9d7d3a5c0012c98aec0e72cc6afc8ccd8a8aada48cba433b4a5d319d22a6adc4a8b4b8fbb8607
   languageName: node
   linkType: hard
 
@@ -4772,10 +4781,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"object-code@npm:1.3.3":
-  version: 1.3.3
-  resolution: "object-code@npm:1.3.3"
-  checksum: 10c0/804650eb9b7f23f612c5ba7afbfccc0406f622d701491a690d0492f6e01252096cfba85186fd39883fda6b0e04d623aa8d9485395830223af2395df32d55a75e
+"object-code@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "object-code@npm:2.0.0"
+  checksum: 10c0/a24790af8dcc03507fefec12bc36c51d38e2fddba709202aa561cf003881223308a128aba65674e3b8b0f401ff867ac732ff28a95259ad49df8a518d5f9743c3
   languageName: node
   linkType: hard
 
@@ -6220,6 +6229,13 @@ __metadata:
   version: 1.1.0
   resolution: "treeify@npm:1.1.0"
   checksum: 10c0/2f0dea9e89328b8a42296a3963d341ab19897a05b723d6b0bced6b28701a340d2a7b03241aef807844198e46009aaf3755139274eb082cfce6fdc1935cbd69dd
+  languageName: node
+  linkType: hard
+
+"try@npm:^1.0.3":
+  version: 1.0.3
+  resolution: "try@npm:1.0.3"
+  checksum: 10c0/96a6d10b01abd1e69e31e0a66862099caa777bdf2dce38ff183ee573baaf272d05677e4c900d85ebf26128201ffe0bfb3a1599fdf49849d49d9a061ab3ddf5c5
   languageName: node
   linkType: hard
 
