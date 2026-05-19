@@ -170,7 +170,8 @@ export async function generateTicketPdf(
         puppeteerErrors.push(message.text());
       }
     })
-    .on("pageerror", (error) => {
+    .on("pageerror", (err) => {
+      const error = err as Error;
       log.warn(error, `[Puppeteer] ${error.name}: ${error.message}.`);
       puppeteerErrors.push(error.message);
     })
@@ -270,7 +271,9 @@ export async function generateTicketPdf(
 
   if (puppeteerErrors.length > 0) {
     throw new Error(
-      `Failed to generate PDF properly, puppeteer encountered: ${puppeteerErrors.join(", ")}`,
+      `Failed to generate PDF properly, puppeteer encountered: ${
+        puppeteerErrors.join(", ")
+      }`,
     );
   }
 
