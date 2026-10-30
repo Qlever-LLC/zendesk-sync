@@ -38,7 +38,8 @@
     "undici@npm:^8.3.0": "8.11.2",
     "undici@npm:^8.5.0": "8.11.2",
     "uuid@npm:^9.0.1": "^11.1.1",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "follow-redirects@npm:^1.16.0": "1.16.1"
   },
   "packageManager": "yarn@4.18.1"
 }
